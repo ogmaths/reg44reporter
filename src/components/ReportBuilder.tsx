@@ -112,17 +112,27 @@ interface StaffFeedback {
   includeInAISummary: boolean;
 }
 
+interface DocumentChecklistItem {
+  id: string;
+  name: string;
+  checked: boolean;
+  notes: string;
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
   visitDate: string;
   visitType: "announced" | "unannounced" | "";
+  settingType: "registered_childrens_home" | "unregistered_provision" | "";
   sections: ReportSection[];
   actions: Action[];
   recommendationsSummary: string;
   spokeWithChildren: boolean;
   childrenFeedback: ChildFeedback[];
   staffFeedback: StaffFeedback[];
+  documentChecklist: DocumentChecklistItem[];
+  documentChecklistNotes: string;
 }
 
 interface ReportVersion {
@@ -135,13 +145,26 @@ interface ReportVersion {
 
 type ViewMode = "create" | "review";
 
-const REPORT_SECTIONS = [
+const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "summary", title: "Summary of Visit" },
   { id: "voice", title: "Voice of the Child" },
   { id: "environment", title: "Observations of the Environment" },
   { id: "staff", title: "Staff & Management Discussion" },
   { id: "records", title: "Records Reviewed" },
   { id: "compliance", title: "Compliance & Concerns" },
+  { id: "recommendations", title: "Recommendations & Actions" },
+];
+
+const UNREGISTERED_PROVISION_SECTIONS = [
+  { id: "summary", title: "Summary of Visit" },
+  { id: "welfare_safeguarding", title: "Welfare & Safeguarding" },
+  { id: "policies_statement", title: "Policies & Statement of Purpose" },
+  { id: "environment_premises", title: "Environment & Premises" },
+  { id: "staffing_training", title: "Staffing & Training" },
+  { id: "support_young_person", title: "Support for the Young Person" },
+  { id: "records_documentation", title: "Records & Documentation" },
+  { id: "leadership_oversight", title: "Leadership & Oversight" },
+  { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
   { id: "recommendations", title: "Recommendations & Actions" },
 ];
 
@@ -154,6 +177,46 @@ const STAFF_ROLES = [
   "Support Worker",
   "Residential Worker",
   "Other",
+];
+
+const REGISTERED_HOME_DOCUMENTS = [
+  "Care Plan",
+  "Complaints / Concerns Log",
+  "Contact Arrangements",
+  "Daily Logs",
+  "Fire Safety Log",
+  "Health & Safety Assessments",
+  "Health / Education Plans",
+  "Incident / Accident Reports",
+  "Internal Reg 45 Reports (Manager's QA)",
+  "Life Story / Key Work Notes",
+  "Missing from Home Records",
+  "Notifications to Ofsted (serious incidents etc.)",
+  "Placement Plan / Agreement",
+  "Recruitment Files (DBS, references)",
+  "Risk Assessments",
+  "Rota (last 2 weeks min.)",
+  "Safeguarding Policy",
+  "Sanctions / Rewards Log",
+  "Staff List with Roles",
+  "Statement of Purpose",
+  "Supervision Records",
+  "Training Matrix or Certificates",
+  "Visitors' Log",
+];
+
+const UNREGISTERED_SETTING_DOCUMENTS = [
+  "Care Plan",
+  "Daily Logs",
+  "DBS Proof",
+  "Draft Statement of Purpose",
+  "Incident Records",
+  "Key Work Notes",
+  "LA Agreement or Referral Info",
+  "Placement Agreement",
+  "Registration Intent Evidence",
+  "Staff Rota",
+  "Training Evidence",
 ];
 
 const ReportBuilder = () => {
@@ -191,7 +254,8 @@ const ReportBuilder = () => {
       searchParams.get("homeAddress") || "123 Oak Street, Manchester",
     visitDate: new Date().toISOString().split("T")[0],
     visitType: "",
-    sections: REPORT_SECTIONS.map((section) => ({
+    settingType: "",
+    sections: REGISTERED_CHILDRENS_HOME_SECTIONS.map((section) => ({
       id: section.id,
       title: section.title,
       content: "",
@@ -203,6 +267,7 @@ const ReportBuilder = () => {
     spokeWithChildren: false,
     childrenFeedback: [],
     staffFeedback: [],
+    documentChecklist: [],
   });
 
   // Offline functionality - Connection status detection
@@ -272,9 +337,15 @@ const ReportBuilder = () => {
     if (offlineData) {
       try {
         const parsedData = JSON.parse(offlineData);
-        // Ensure staffFeedback exists for backward compatibility
+        // Ensure staffFeedback and documentChecklist exist for backward compatibility
         if (!parsedData.reportData.staffFeedback) {
           parsedData.reportData.staffFeedback = [];
+        }
+        if (!parsedData.reportData.documentChecklist) {
+          parsedData.reportData.documentChecklist = [];
+        }
+        if (!parsedData.reportData.documentChecklistNotes) {
+          parsedData.reportData.documentChecklistNotes = "";
         }
         setReportData(parsedData.reportData);
         setAiGeneratedContent(parsedData.aiGeneratedContent || "");
@@ -566,12 +637,18 @@ const ReportBuilder = () => {
       aiSummary += `**Home:** ${reportData.homeName}\n`;
       aiSummary += `**Address:** ${reportData.homeAddress}\n`;
       aiSummary += `**Date of Visit:** ${new Date(reportData.visitDate).toLocaleDateString()}\n`;
-      aiSummary += `**Type of Visit:** ${reportData.visitType ? reportData.visitType.charAt(0).toUpperCase() + reportData.visitType.slice(1) : "Not specified"}\n\n`;
+      aiSummary += `**Type of Visit:** ${reportData.visitType ? reportData.visitType.charAt(0).toUpperCase() + reportData.visitType.slice(1) : "Not specified"}\n`;
+      aiSummary += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "unregistered_provision" ? "Regulation 44-Style Assurance Review – Unregistered Provision" : "Not specified"}\n\n`;
 
       // Executive Summary
       aiSummary += `## Executive Summary\n\n`;
-      aiSummary += `This report documents the findings from the Regulation 44 visit conducted at ${reportData.homeName}. `;
-      aiSummary += `The ${reportData.visitType || "scheduled"} visit assessed compliance with regulatory requirements and the quality of care provided to children and young people.\n\n`;
+      if (reportData.settingType === "unregistered_provision") {
+        aiSummary += `This report documents the findings from the Regulation 44-Style Assurance Review conducted at ${reportData.homeName}. `;
+        aiSummary += `The ${reportData.visitType || "scheduled"} review assessed the provision's readiness for Ofsted registration and compliance with regulatory standards for the care and support of young people.\n\n`;
+      } else {
+        aiSummary += `This report documents the findings from the Regulation 44 visit conducted at ${reportData.homeName}. `;
+        aiSummary += `The ${reportData.visitType || "scheduled"} visit assessed compliance with regulatory requirements and the quality of care provided to children and young people.\n\n`;
+      }
 
       // Detailed Findings by Section
       if (allSections.length > 0) {
@@ -595,21 +672,41 @@ const ReportBuilder = () => {
       // Overall Assessment
       aiSummary += `## Overall Assessment\n\n`;
       if (allSections.length > 0) {
-        aiSummary += `Based on the observations and discussions during this visit, the following key areas have been identified for attention. `;
-        if (childrenFeedbackForAI.length > 0) {
-          aiSummary += `The voices of ${terminology.plural} have been captured and their feedback has been incorporated into this assessment. `;
+        if (reportData.settingType === "unregistered_provision") {
+          aiSummary += `Based on the observations and discussions during this assurance review, the following key areas have been identified for attention in preparation for Ofsted registration. `;
+          if (childrenFeedbackForAI.length > 0) {
+            aiSummary += `The voices of ${terminology.plural} have been captured and their feedback has been incorporated into this assessment. `;
+          }
+          aiSummary += `The provision demonstrates commitment to meeting regulatory standards, with specific recommendations outlined above to support successful registration and ongoing compliance.\n\n`;
+        } else {
+          aiSummary += `Based on the observations and discussions during this visit, the following key areas have been identified for attention. `;
+          if (childrenFeedbackForAI.length > 0) {
+            aiSummary += `The voices of ${terminology.plural} have been captured and their feedback has been incorporated into this assessment. `;
+          }
+          aiSummary += `The home demonstrates commitment to providing quality care, with specific recommendations outlined above to support continuous improvement.\n\n`;
         }
-        aiSummary += `The home demonstrates commitment to providing quality care, with specific recommendations outlined above to support continuous improvement.\n\n`;
       } else {
-        aiSummary += `This visit focused on specific areas of concern and compliance. Detailed observations and recommendations are documented in the actions section above.\n\n`;
+        if (reportData.settingType === "unregistered_provision") {
+          aiSummary += `This review focused on specific areas of regulatory compliance and readiness for registration. Detailed observations and recommendations are documented in the actions section above.\n\n`;
+        } else {
+          aiSummary += `This visit focused on specific areas of concern and compliance. Detailed observations and recommendations are documented in the actions section above.\n\n`;
+        }
       }
 
       // Next Steps
       aiSummary += `## Next Steps\n\n`;
-      aiSummary += `- Implementation of recommendations within specified timeframes\n`;
-      aiSummary += `- Follow-up monitoring of action items\n`;
-      aiSummary += `- Schedule next regulatory visit as per requirements\n`;
-      aiSummary += `- Ongoing communication with registered manager regarding progress\n\n`;
+      if (reportData.settingType === "unregistered_provision") {
+        aiSummary += `- Implementation of recommendations within specified timeframes\n`;
+        aiSummary += `- Follow-up monitoring of action items\n`;
+        aiSummary += `- Preparation for Ofsted registration application\n`;
+        aiSummary += `- Schedule follow-up assurance review as required\n`;
+        aiSummary += `- Ongoing communication with provision manager regarding progress towards registration\n\n`;
+      } else {
+        aiSummary += `- Implementation of recommendations within specified timeframes\n`;
+        aiSummary += `- Follow-up monitoring of action items\n`;
+        aiSummary += `- Schedule next regulatory visit as per requirements\n`;
+        aiSummary += `- Ongoing communication with registered manager regarding progress\n\n`;
+      }
 
       // Footer
       aiSummary += `---\n\n`;
@@ -828,13 +925,9 @@ const ReportBuilder = () => {
     }));
   };
 
-  // Determine terminology based on home type
+  // Determine terminology based on setting type
   const getChildTerminology = () => {
-    const homeName = reportData.homeName.toLowerCase();
-    if (
-      homeName.includes("supported accommodation") ||
-      homeName.includes("semi-independent")
-    ) {
+    if (reportData.settingType === "unregistered_provision") {
       return {
         singular: "young person",
         plural: "young people",
@@ -851,6 +944,65 @@ const ReportBuilder = () => {
   };
 
   const terminology = getChildTerminology();
+
+  // Handle setting type change and update sections accordingly
+  const handleSettingTypeChange = (
+    settingType: "registered_childrens_home" | "unregistered_provision",
+  ) => {
+    const newSections =
+      settingType === "registered_childrens_home"
+        ? REGISTERED_CHILDRENS_HOME_SECTIONS
+        : UNREGISTERED_PROVISION_SECTIONS;
+
+    // Preserve existing content where sections match
+    const updatedSections = newSections.map((newSection) => {
+      const existingSection = reportData.sections.find(
+        (s) => s.id === newSection.id,
+      );
+      return {
+        id: newSection.id,
+        title: newSection.title,
+        content: existingSection?.content || "",
+        images: existingSection?.images || [],
+        isRecording: false,
+      };
+    });
+
+    // Generate document checklist based on setting type
+    const documentList =
+      settingType === "registered_childrens_home"
+        ? REGISTERED_HOME_DOCUMENTS
+        : UNREGISTERED_SETTING_DOCUMENTS;
+
+    const newDocumentChecklist: DocumentChecklistItem[] = documentList.map(
+      (doc, index) => ({
+        id: `doc-${index}`,
+        name: doc,
+        checked: false,
+        notes: "",
+      }),
+    );
+
+    setReportData((prev) => ({
+      ...prev,
+      settingType,
+      sections: updatedSections,
+      documentChecklist: newDocumentChecklist,
+    }));
+  };
+
+  const handleDocumentChecklistUpdate = (
+    itemId: string,
+    field: "checked" | "notes",
+    value: boolean | string,
+  ) => {
+    setReportData((prev) => ({
+      ...prev,
+      documentChecklist: prev.documentChecklist.map((item) =>
+        item.id === itemId ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
 
   const generateSecureLink = () => {
     // In a real app, this would generate a secure, time-limited link
@@ -1338,6 +1490,72 @@ const ReportBuilder = () => {
               </div>
             )}
 
+            {reportData.documentChecklist.length > 0 && (
+              <div className="border-l-4 border-purple-500 pl-4">
+                <h3 className="font-semibold text-lg mb-2">
+                  Document Review Summary
+                </h3>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-700 bg-purple-50 p-3 rounded">
+                    <p className="font-medium mb-2">
+                      Documents Reviewed:{" "}
+                      {
+                        reportData.documentChecklist.filter(
+                          (item) => item.checked,
+                        ).length
+                      }{" "}
+                      of {reportData.documentChecklist.length}
+                    </p>
+                    <div className="space-y-1">
+                      {reportData.documentChecklist
+                        .filter((item) => item.checked)
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center text-xs"
+                          >
+                            <CheckCircle className="h-3 w-3 text-green-500 mr-2" />
+                            <span>{item.name}</span>
+                            {item.notes && (
+                              <span className="ml-2 text-gray-600">
+                                - {item.notes}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    {reportData.documentChecklist.some(
+                      (item) => !item.checked,
+                    ) && (
+                      <div className="mt-3 pt-2 border-t border-purple-200">
+                        <p className="font-medium text-red-600 mb-1">
+                          Documents Not Reviewed:
+                        </p>
+                        <div className="space-y-1">
+                          {reportData.documentChecklist
+                            .filter((item) => !item.checked)
+                            .map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center text-xs text-red-600"
+                              >
+                                <AlertCircle className="h-3 w-3 mr-2" />
+                                <span>{item.name}</span>
+                                {item.notes && (
+                                  <span className="ml-2 text-gray-600">
+                                    - {item.notes}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {aiGeneratedContent && (
               <div className="border-l-4 border-green-500 pl-4">
                 <h3 className="font-semibold text-lg mb-2">
@@ -1652,7 +1870,7 @@ const ReportBuilder = () => {
                   </Button>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button size="sm">
+                      <Button>
                         <Send className="h-4 w-4 mr-2" />
                         Submit Final Report
                       </Button>
@@ -1861,38 +2079,202 @@ const ReportBuilder = () => {
               </div>
 
               <div>
-                <Label>Type of Visit</Label>
+                <Label className="text-sm font-medium text-gray-600">
+                  What type of setting are you visiting?
+                </Label>
+                <Select
+                  value={reportData.settingType}
+                  onValueChange={(
+                    value:
+                      | "registered_childrens_home"
+                      | "unregistered_provision",
+                  ) => handleSettingTypeChange(value)}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select setting type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="registered_childrens_home">
+                      Registered Children's Home
+                    </SelectItem>
+                    <SelectItem value="unregistered_provision">
+                      Regulation 44-Style Assurance Review – Unregistered
+                      Provision
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Visit Type
+                </Label>
+                <p className="text-sm capitalize">
+                  {reportData.visitType || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Setting Type
+                </Label>
+                <p className="text-sm">
+                  {reportData.settingType === "registered_childrens_home"
+                    ? "Registered Children's Home"
+                    : reportData.settingType === "unregistered_provision"
+                      ? "Regulation 44-Style Assurance Review – Unregistered Provision"
+                      : "Not specified"}
+                </p>
+              </div>
+
+              <div>
+                <Label>Spoke with children?</Label>
                 <div className="flex items-center space-x-6 mt-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="announced"
-                      checked={reportData.visitType === "announced"}
-                      onCheckedChange={(checked) =>
+                      id="spoke-with-children-yes"
+                      checked={reportData.spokeWithChildren}
+                      onCheckedChange={(checked) => {
                         setReportData((prev) => ({
                           ...prev,
-                          visitType: checked ? "announced" : "",
-                        }))
-                      }
+                          spokeWithChildren: !!checked,
+                          childrenFeedback: checked
+                            ? prev.childrenFeedback
+                            : [],
+                        }));
+                      }}
                     />
-                    <Label htmlFor="announced">Announced</Label>
+                    <Label htmlFor="spoke-with-children-yes">Yes</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="unannounced"
-                      checked={reportData.visitType === "unannounced"}
-                      onCheckedChange={(checked) =>
+                      id="spoke-with-children-no"
+                      checked={!reportData.spokeWithChildren}
+                      onCheckedChange={(checked) => {
                         setReportData((prev) => ({
                           ...prev,
-                          visitType: checked ? "unannounced" : "",
-                        }))
-                      }
+                          spokeWithChildren: !checked,
+                          childrenFeedback: checked
+                            ? []
+                            : prev.childrenFeedback,
+                        }));
+                      }}
                     />
-                    <Label htmlFor="unannounced">Unannounced</Label>
+                    <Label htmlFor="spoke-with-children-no">No</Label>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Document Checklist */}
+          {reportData.settingType && (
+            <Card className="mb-8 bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Document Checklist
+                </CardTitle>
+                <CardDescription>
+                  Review and check off documents that were examined during your
+                  visit. Add notes for any missing or concerning documents.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {reportData.documentChecklist.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                      >
+                        <Checkbox
+                          id={`doc-${item.id}`}
+                          checked={item.checked}
+                          onCheckedChange={(checked) =>
+                            handleDocumentChecklistUpdate(
+                              item.id,
+                              "checked",
+                              !!checked,
+                            )
+                          }
+                        />
+                        <Label
+                          htmlFor={`doc-${item.id}`}
+                          className="text-sm font-medium flex-1 cursor-pointer"
+                        >
+                          {item.name}
+                        </Label>
+                        {item.checked && (
+                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {reportData.documentChecklist.length > 0 && (
+                    <>
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">
+                              Progress Summary
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              {
+                                reportData.documentChecklist.filter(
+                                  (item) => item.checked,
+                                ).length
+                              }{" "}
+                              of {reportData.documentChecklist.length} documents
+                              reviewed
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-blue-600">
+                              {Math.round(
+                                (reportData.documentChecklist.filter(
+                                  (item) => item.checked,
+                                ).length /
+                                  reportData.documentChecklist.length) *
+                                  100,
+                              )}
+                              %
+                            </div>
+                            <p className="text-xs text-gray-600">Complete</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <Label
+                          htmlFor="document-checklist-notes"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Overall Notes on Document Review
+                        </Label>
+                        <p className="text-xs text-gray-600 mt-1 mb-2">
+                          Add any overall comments about concerning documents or
+                          issues identified during the document review.
+                        </p>
+                        <Textarea
+                          id="document-checklist-notes"
+                          value={reportData.documentChecklistNotes}
+                          onChange={(e) =>
+                            setReportData((prev) => ({
+                              ...prev,
+                              documentChecklistNotes: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter any concerns or observations about the documents reviewed..."
+                          className="min-h-[80px]"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Report Sections */}
           <Card className="mb-8 bg-white">
@@ -2555,8 +2937,9 @@ const ReportBuilder = () => {
                             </div>
                           )}
 
-                          {/* Children's Feedback Section - Only show in Voice of the Child section */}
-                          {section.id === "voice" && (
+                          {/* Children's Feedback Section - Only show in Voice of the Child section or Support for the Young Person section */}
+                          {(section.id === "voice" ||
+                            section.id === "support_young_person") && (
                             <div className="mt-8 pt-6 border-t">
                               <div className="space-y-6">
                                 <div>
