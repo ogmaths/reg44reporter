@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import jsPDF from "jspdf";
+import { useToast } from "./ui/use-toast";
 import {
   Card,
   CardContent,
@@ -58,6 +59,11 @@ import {
   Plus,
   User,
   Target,
+  Wifi,
+  WifiOff,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 import {
   Table,
@@ -86,6 +92,26 @@ interface Action {
   homeId: string;
 }
 
+interface ChildFeedback {
+  id: string;
+  initialsOrCode: string;
+  age: string;
+  summary: string;
+  concernsRaised: boolean;
+  actionTaken: string;
+  includeInAISummary: boolean;
+}
+
+interface StaffFeedback {
+  id: string;
+  initialsOrCode: string;
+  role: string;
+  questionsAsked: string;
+  keyPointsRaised: string;
+  concernsRaised: boolean;
+  includeInAISummary: boolean;
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
@@ -94,6 +120,9 @@ interface ReportData {
   sections: ReportSection[];
   actions: Action[];
   recommendationsSummary: string;
+  spokeWithChildren: boolean;
+  childrenFeedback: ChildFeedback[];
+  staffFeedback: StaffFeedback[];
 }
 
 interface ReportVersion {
@@ -116,9 +145,21 @@ const REPORT_SECTIONS = [
   { id: "recommendations", title: "Recommendations & Actions" },
 ];
 
+const STAFF_ROLES = [
+  "Key Worker",
+  "Senior",
+  "Night Staff",
+  "Deputy Manager",
+  "Team Leader",
+  "Support Worker",
+  "Residential Worker",
+  "Other",
+];
+
 const ReportBuilder = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { toast } = useToast();
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -138,6 +179,12 @@ const ReportBuilder = () => {
   const [isGeneratingChildFriendly, setIsGeneratingChildFriendly] =
     useState(false);
 
+  // Offline functionality state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [hasOfflineChanges, setHasOfflineChanges] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
+
   const [reportData, setReportData] = useState<ReportData>({
     homeName: searchParams.get("homeName") || "Sample Children's Home",
     homeAddress:
@@ -153,11 +200,57 @@ const ReportBuilder = () => {
     })),
     actions: [],
     recommendationsSummary: "",
+    spokeWithChildren: false,
+    childrenFeedback: [],
+    staffFeedback: [],
   });
 
-  // Load existing actions for this home
+  // Offline functionality - Connection status detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({
+        title: "🟢 Connected",
+        description:
+          "Internet connection restored. You can now sync your changes.",
+        duration: 3000,
+      });
+
+      // Check for offline changes and prompt sync
+      const homeId = searchParams.get("homeId") || "sample-home";
+      const reportId = `report-${homeId}-${new Date().toISOString().split("T")[0]}`;
+      const offlineData = localStorage.getItem(`offline-report-${reportId}`);
+
+      if (offlineData && hasOfflineChanges) {
+        setShowSyncDialog(true);
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({
+        title: "🔴 Offline",
+        description:
+          "Changes will be saved locally until connection is restored.",
+        duration: 5000,
+      });
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [hasOfflineChanges, searchParams, toast]);
+
+  // Load existing actions and offline data for this home
   useEffect(() => {
     const homeId = searchParams.get("homeId") || "sample-home";
+    const reportId = `report-${homeId}-${new Date().toISOString().split("T")[0]}`;
+
+    // Load existing actions
     const savedActions = localStorage.getItem(`actions-${homeId}`);
     if (savedActions) {
       const actions: Action[] = JSON.parse(savedActions);
@@ -167,34 +260,120 @@ const ReportBuilder = () => {
 
       // Pre-fill incomplete actions into recommendations section
       if (incompleteActions.length > 0) {
-        const recommendationsSection = reportData.sections.find(
-          (s) => s.id === "recommendations",
-        );
-        // Carry forward incomplete actions
         setReportData((prev) => ({
           ...prev,
           actions: actions,
         }));
       }
     }
-  }, []);
+
+    // Load offline report data if exists
+    const offlineData = localStorage.getItem(`offline-report-${reportId}`);
+    if (offlineData) {
+      try {
+        const parsedData = JSON.parse(offlineData);
+        // Ensure staffFeedback exists for backward compatibility
+        if (!parsedData.reportData.staffFeedback) {
+          parsedData.reportData.staffFeedback = [];
+        }
+        setReportData(parsedData.reportData);
+        setAiGeneratedContent(parsedData.aiGeneratedContent || "");
+        setChildFriendlySummary(parsedData.childFriendlySummary || "");
+        setHasOfflineChanges(true);
+        setLastSaved(new Date(parsedData.lastSaved));
+
+        toast({
+          title: "📄 Offline Draft Loaded",
+          description: "Your previous offline work has been restored.",
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error loading offline data:", error);
+      }
+    }
+  }, [searchParams, toast]);
+
+  // Enhanced auto-save functionality with offline support
+  const saveToLocalStorage = useCallback(
+    (data: ReportData, isOffline = false) => {
+      const homeId = searchParams.get("homeId") || "sample-home";
+      const reportId = `report-${homeId}-${new Date().toISOString().split("T")[0]}`;
+
+      const saveData = {
+        reportData: data,
+        aiGeneratedContent,
+        childFriendlySummary,
+        lastSaved: new Date().toISOString(),
+        isOffline,
+        timestamp: Date.now(),
+      };
+
+      try {
+        localStorage.setItem(
+          `offline-report-${reportId}`,
+          JSON.stringify(saveData),
+        );
+        if (isOffline) {
+          setHasOfflineChanges(true);
+        }
+        return true;
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+        toast({
+          title: "⚠️ Save Error",
+          description:
+            "Unable to save locally. Please check your browser storage.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    },
+    [searchParams, aiGeneratedContent, childFriendlySummary, toast],
+  );
 
   // Auto-save functionality
   useEffect(() => {
     const autoSave = setInterval(() => {
-      handleSaveDraft(true);
-    }, 30000); // Auto-save every 30 seconds
+      if (isOnline) {
+        handleSaveDraft(true);
+      } else {
+        // Save offline
+        const success = saveToLocalStorage(reportData, true);
+        if (success) {
+          setLastSaved(new Date());
+        }
+      }
+    }, 15000); // Auto-save every 15 seconds
 
     return () => clearInterval(autoSave);
-  }, [reportData]);
+  }, [reportData, isOnline, saveToLocalStorage]);
 
   const handleSaveDraft = (isAutoSave = false) => {
-    // In a real app, this would save to a backend
-    localStorage.setItem("reportDraft", JSON.stringify(reportData));
-    setLastSaved(new Date());
-    if (!isAutoSave) {
-      // Show toast notification for manual saves
-      console.log("Draft saved successfully");
+    if (isOnline) {
+      // In a real app, this would save to a backend
+      localStorage.setItem("reportDraft", JSON.stringify(reportData));
+      setLastSaved(new Date());
+      if (!isAutoSave) {
+        toast({
+          title: "💾 Draft Saved",
+          description: "Your report has been saved to the cloud.",
+          duration: 2000,
+        });
+      }
+    } else {
+      // Save offline
+      const success = saveToLocalStorage(reportData, true);
+      if (success) {
+        setLastSaved(new Date());
+        if (!isAutoSave) {
+          toast({
+            title: "💾 Saved Offline",
+            description:
+              "Your report has been saved locally and will sync when online.",
+            duration: 3000,
+          });
+        }
+      }
     }
   };
 
@@ -328,6 +507,47 @@ const ReportBuilder = () => {
         )
         .map((section) => ({ title: section.title, content: section.content }));
 
+      // Include children's feedback marked for AI summary
+      const childrenFeedbackForAI = reportData.childrenFeedback
+        .filter(
+          (feedback) => feedback.includeInAISummary && feedback.summary.trim(),
+        )
+        .map((feedback) => ({
+          title: `${terminology.capitalSingular} Feedback (${feedback.initialsOrCode})`,
+          content: `${feedback.summary}${feedback.concernsRaised ? " [Concerns were raised]" : ""}${feedback.actionTaken ? ` Action taken: ${feedback.actionTaken}` : ""}`,
+        }));
+
+      // Include staff feedback marked for AI summary
+      const staffFeedbackForAI = reportData.staffFeedback
+        .filter(
+          (feedback) =>
+            feedback.includeInAISummary &&
+            (feedback.questionsAsked.trim() || feedback.keyPointsRaised.trim()),
+        )
+        .map((feedback) => ({
+          title: `Staff Interview - ${feedback.initialsOrCode} (${feedback.role})`,
+          content: `${feedback.questionsAsked ? `Questions asked: ${feedback.questionsAsked}\n` : ""}${feedback.keyPointsRaised ? `Key points raised: ${feedback.keyPointsRaised}` : ""}${feedback.concernsRaised ? "\n⚠️ Concerns were raised during this interview." : ""}`,
+        }));
+
+      // Include all children's feedback (not just those marked for AI summary) to ensure comprehensive reporting
+      const allChildrenFeedback = reportData.childrenFeedback
+        .filter((feedback) => feedback.summary.trim())
+        .map((feedback) => ({
+          title: `${terminology.capitalSingular} Voice - ${feedback.initialsOrCode}${feedback.age ? ` (Age: ${feedback.age})` : ""}`,
+          content: `Summary: ${feedback.summary}${feedback.concernsRaised ? "\n⚠️ Concerns were raised during this conversation." : ""}${feedback.actionTaken ? `\nAction taken: ${feedback.actionTaken}` : ""}`,
+        }));
+
+      // Combine regular sections with children's feedback (prioritize marked feedback, then include all)
+      const combinedChildrenFeedback =
+        childrenFeedbackForAI.length > 0
+          ? childrenFeedbackForAI
+          : allChildrenFeedback;
+      const allSections = [
+        ...reportSections,
+        ...combinedChildrenFeedback,
+        ...staffFeedbackForAI,
+      ];
+
       // Format actions from the Recommendations & Actions table
       const actionsText =
         reportData.actions.length > 0
@@ -354,9 +574,9 @@ const ReportBuilder = () => {
       aiSummary += `The ${reportData.visitType || "scheduled"} visit assessed compliance with regulatory requirements and the quality of care provided to children and young people.\n\n`;
 
       // Detailed Findings by Section
-      if (reportSections.length > 0) {
+      if (allSections.length > 0) {
         aiSummary += `## Detailed Findings\n\n`;
-        reportSections.forEach((section) => {
+        allSections.forEach((section) => {
           aiSummary += `### ${section.title}\n\n`;
           aiSummary += `${section.content}\n\n`;
         });
@@ -374,8 +594,11 @@ const ReportBuilder = () => {
 
       // Overall Assessment
       aiSummary += `## Overall Assessment\n\n`;
-      if (reportSections.length > 0) {
+      if (allSections.length > 0) {
         aiSummary += `Based on the observations and discussions during this visit, the following key areas have been identified for attention. `;
+        if (childrenFeedbackForAI.length > 0) {
+          aiSummary += `The voices of ${terminology.plural} have been captured and their feedback has been incorporated into this assessment. `;
+        }
         aiSummary += `The home demonstrates commitment to providing quality care, with specific recommendations outlined above to support continuous improvement.\n\n`;
       } else {
         aiSummary += `This visit focused on specific areas of concern and compliance. Detailed observations and recommendations are documented in the actions section above.\n\n`;
@@ -526,6 +749,108 @@ const ReportBuilder = () => {
     const homeId = searchParams.get("homeId") || "sample-home";
     localStorage.setItem(`actions-${homeId}`, JSON.stringify(updatedActions));
   };
+
+  const handleAddChildFeedback = () => {
+    const newFeedback: ChildFeedback = {
+      id: Date.now().toString(),
+      initialsOrCode: "",
+      age: "",
+      summary: "",
+      concernsRaised: false,
+      actionTaken: "",
+      includeInAISummary: false,
+    };
+
+    setReportData((prev) => ({
+      ...prev,
+      childrenFeedback: [...prev.childrenFeedback, newFeedback],
+    }));
+  };
+
+  const handleUpdateChildFeedback = (
+    feedbackId: string,
+    field: keyof ChildFeedback,
+    value: string | boolean,
+  ) => {
+    setReportData((prev) => ({
+      ...prev,
+      childrenFeedback: prev.childrenFeedback.map((feedback) =>
+        feedback.id === feedbackId ? { ...feedback, [field]: value } : feedback,
+      ),
+    }));
+  };
+
+  const handleRemoveChildFeedback = (feedbackId: string) => {
+    setReportData((prev) => ({
+      ...prev,
+      childrenFeedback: prev.childrenFeedback.filter(
+        (feedback) => feedback.id !== feedbackId,
+      ),
+    }));
+  };
+
+  const handleAddStaffFeedback = () => {
+    const newFeedback: StaffFeedback = {
+      id: Date.now().toString(),
+      initialsOrCode: "",
+      role: "",
+      questionsAsked: "",
+      keyPointsRaised: "",
+      concernsRaised: false,
+      includeInAISummary: false,
+    };
+
+    setReportData((prev) => ({
+      ...prev,
+      staffFeedback: [...prev.staffFeedback, newFeedback],
+    }));
+  };
+
+  const handleUpdateStaffFeedback = (
+    feedbackId: string,
+    field: keyof StaffFeedback,
+    value: string | boolean,
+  ) => {
+    setReportData((prev) => ({
+      ...prev,
+      staffFeedback: prev.staffFeedback.map((feedback) =>
+        feedback.id === feedbackId ? { ...feedback, [field]: value } : feedback,
+      ),
+    }));
+  };
+
+  const handleRemoveStaffFeedback = (feedbackId: string) => {
+    setReportData((prev) => ({
+      ...prev,
+      staffFeedback: prev.staffFeedback.filter(
+        (feedback) => feedback.id !== feedbackId,
+      ),
+    }));
+  };
+
+  // Determine terminology based on home type
+  const getChildTerminology = () => {
+    const homeName = reportData.homeName.toLowerCase();
+    if (
+      homeName.includes("supported accommodation") ||
+      homeName.includes("semi-independent")
+    ) {
+      return {
+        singular: "young person",
+        plural: "young people",
+        capitalSingular: "Young Person",
+        capitalPlural: "Young People",
+      };
+    }
+    return {
+      singular: "child",
+      plural: "children",
+      capitalSingular: "Child",
+      capitalPlural: "Children",
+    };
+  };
+
+  const terminology = getChildTerminology();
 
   const generateSecureLink = () => {
     // In a real app, this would generate a secure, time-limited link
@@ -822,6 +1147,47 @@ const ReportBuilder = () => {
     pdf.save(fileName);
   };
 
+  // Sync offline data to cloud
+  const syncOfflineData = async () => {
+    setIsSyncing(true);
+
+    try {
+      const homeId = searchParams.get("homeId") || "sample-home";
+      const reportId = `report-${homeId}-${new Date().toISOString().split("T")[0]}`;
+      const offlineData = localStorage.getItem(`offline-report-${reportId}`);
+
+      if (offlineData) {
+        const parsedData = JSON.parse(offlineData);
+
+        // In a real app, this would sync to backend
+        localStorage.setItem(
+          "reportDraft",
+          JSON.stringify(parsedData.reportData),
+        );
+
+        // Clear offline data after successful sync
+        localStorage.removeItem(`offline-report-${reportId}`);
+        setHasOfflineChanges(false);
+
+        toast({
+          title: "☁️ Sync Complete",
+          description: "Your offline changes have been synced to the cloud.",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      toast({
+        title: "⚠️ Sync Failed",
+        description: "Unable to sync offline changes. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+      setShowSyncDialog(false);
+    }
+  };
+
   const saveVersion = (status: "draft" | "submitted", description: string) => {
     const homeId = searchParams.get("homeId") || "sample-home";
     const reportId =
@@ -848,7 +1214,12 @@ const ReportBuilder = () => {
       `report-versions-${reportId}`,
       JSON.stringify(updatedVersions),
     );
-    localStorage.setItem("reportDraft", JSON.stringify(reportData));
+
+    if (isOnline) {
+      localStorage.setItem("reportDraft", JSON.stringify(reportData));
+    } else {
+      saveToLocalStorage(reportData, true);
+    }
 
     return newVersion;
   };
@@ -974,6 +1345,93 @@ const ReportBuilder = () => {
                 </h3>
                 <div className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded">
                   {aiGeneratedContent}
+                </div>
+              </div>
+            )}
+
+            {reportData.childrenFeedback.length > 0 && (
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="font-semibold text-lg mb-2">
+                  {terminology.capitalPlural}'s Feedback
+                </h3>
+                <div className="space-y-3">
+                  {reportData.childrenFeedback.map((feedback) => (
+                    <div
+                      key={feedback.id}
+                      className="text-sm text-gray-700 bg-green-50 p-3 rounded"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium">
+                          {feedback.initialsOrCode}
+                          {feedback.age && ` (Age: ${feedback.age})`}
+                        </p>
+                        {feedback.includeInAISummary && (
+                          <Badge variant="secondary" className="text-xs">
+                            Included in AI Summary
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mb-2">{feedback.summary}</p>
+                      {feedback.concernsRaised && (
+                        <p className="text-red-600 font-medium mb-1">
+                          ⚠️ Concerns were raised
+                        </p>
+                      )}
+                      {feedback.actionTaken && (
+                        <p className="text-blue-600">
+                          <strong>Action taken:</strong> {feedback.actionTaken}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {reportData.staffFeedback.length > 0 && (
+              <div className="border-l-4 border-blue-500 pl-4">
+                <h3 className="font-semibold text-lg mb-2">
+                  Staff Feedback / Interviews
+                </h3>
+                <div className="space-y-3">
+                  {reportData.staffFeedback.map((feedback) => (
+                    <div
+                      key={feedback.id}
+                      className="text-sm text-gray-700 bg-blue-50 p-3 rounded"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium">
+                          {feedback.initialsOrCode} ({feedback.role})
+                        </p>
+                        {feedback.includeInAISummary && (
+                          <Badge variant="secondary" className="text-xs">
+                            Included in AI Summary
+                          </Badge>
+                        )}
+                      </div>
+                      {feedback.questionsAsked && (
+                        <div className="mb-2">
+                          <p className="font-medium text-blue-800">
+                            Questions asked:
+                          </p>
+                          <p>{feedback.questionsAsked}</p>
+                        </div>
+                      )}
+                      {feedback.keyPointsRaised && (
+                        <div className="mb-2">
+                          <p className="font-medium text-blue-800">
+                            Key points raised:
+                          </p>
+                          <p>{feedback.keyPointsRaised}</p>
+                        </div>
+                      )}
+                      {feedback.concernsRaised && (
+                        <p className="text-red-600 font-medium mb-1">
+                          ⚠️ Concerns were raised
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1108,6 +1566,42 @@ const ReportBuilder = () => {
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4">
+          {/* Connection Status Indicator */}
+          <div className="flex items-center justify-center mb-3">
+            <div
+              className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${
+                isOnline
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {isOnline ? (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <Wifi className="h-4 w-4" />
+                  <span>Connected</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <WifiOff className="h-4 w-4" />
+                  <span>Offline – changes will be saved locally</span>
+                </>
+              )}
+              {hasOfflineChanges && isOnline && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSyncDialog(true)}
+                  className="ml-2 h-6 px-2 text-xs"
+                >
+                  <Cloud className="h-3 w-3 mr-1" />
+                  Sync Available
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
@@ -1128,6 +1622,11 @@ const ReportBuilder = () => {
                 {lastSaved && viewMode === "create" && (
                   <p className="text-sm text-gray-500">
                     Last saved: {lastSaved.toLocaleTimeString()}
+                    {!isOnline && hasOfflineChanges && (
+                      <span className="ml-2 text-orange-600 font-medium">
+                        (Offline)
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
@@ -1234,6 +1733,66 @@ const ReportBuilder = () => {
           </div>
         </div>
       </div>
+
+      {/* Sync Dialog */}
+      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Cloud className="h-5 w-5 mr-2" />
+              Sync Offline Changes
+            </DialogTitle>
+            <DialogDescription>
+              You have offline changes that can now be synced to the cloud.
+              Would you like to upload your local draft?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">What will be synced:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>All report sections and content</li>
+                    <li>Actions and recommendations</li>
+                    <li>Children's feedback</li>
+                    <li>AI-generated summaries</li>
+                    <li>Uploaded images and attachments</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                onClick={syncOfflineData}
+                disabled={isSyncing}
+                className="flex-1"
+              >
+                {isSyncing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="h-4 w-4 mr-2" />
+                    Sync Now
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowSyncDialog(false)}
+                disabled={isSyncing}
+              >
+                Later
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {viewMode === "review" && renderReviewScreen()}
 
@@ -1759,6 +2318,493 @@ const ReportBuilder = () => {
                               </div>
                             </div>
                           )}
+
+                          {/* Staff Feedback Section - Only show in Staff & Management Discussion section */}
+                          {section.id === "staff" && (
+                            <div className="mt-8 pt-6 border-t">
+                              <div className="space-y-6">
+                                <div>
+                                  <Label className="text-base font-medium">
+                                    Staff Feedback / Interviews
+                                  </Label>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Record structured interviews with staff
+                                    members to capture their views and concerns.
+                                  </p>
+                                </div>
+
+                                {reportData.staffFeedback.length > 0 && (
+                                  <div className="space-y-6">
+                                    {reportData.staffFeedback.map(
+                                      (feedback, index) => (
+                                        <div
+                                          key={feedback.id}
+                                          className="border rounded-lg p-4 space-y-4 bg-blue-50"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-lg">
+                                              Staff Interview {index + 1}
+                                            </h4>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleRemoveStaffFeedback(
+                                                  feedback.id,
+                                                )
+                                              }
+                                              className="text-red-600 hover:text-red-700"
+                                            >
+                                              <X className="h-4 w-4 mr-1" />
+                                              Remove
+                                            </Button>
+                                          </div>
+
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                              <Label
+                                                htmlFor={`staff-initials-${feedback.id}`}
+                                              >
+                                                Staff Initials or Code Name *
+                                              </Label>
+                                              <Input
+                                                id={`staff-initials-${feedback.id}`}
+                                                value={feedback.initialsOrCode}
+                                                onChange={(e) =>
+                                                  handleUpdateStaffFeedback(
+                                                    feedback.id,
+                                                    "initialsOrCode",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                placeholder="e.g., J.S. or Staff1"
+                                                className="mt-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label
+                                                htmlFor={`staff-role-${feedback.id}`}
+                                              >
+                                                Role *
+                                              </Label>
+                                              <Select
+                                                value={feedback.role}
+                                                onValueChange={(value) =>
+                                                  handleUpdateStaffFeedback(
+                                                    feedback.id,
+                                                    "role",
+                                                    value,
+                                                  )
+                                                }
+                                              >
+                                                <SelectTrigger className="mt-1">
+                                                  <SelectValue placeholder="Select role" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  {STAFF_ROLES.map((role) => (
+                                                    <SelectItem
+                                                      key={role}
+                                                      value={role}
+                                                    >
+                                                      {role}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <Label
+                                              htmlFor={`questions-${feedback.id}`}
+                                            >
+                                              Questions Asked
+                                            </Label>
+                                            <Textarea
+                                              id={`questions-${feedback.id}`}
+                                              value={feedback.questionsAsked}
+                                              onChange={(e) =>
+                                                handleUpdateStaffFeedback(
+                                                  feedback.id,
+                                                  "questionsAsked",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Record the questions you asked during the interview..."
+                                              className="mt-1 min-h-[80px]"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <Label
+                                              htmlFor={`key-points-${feedback.id}`}
+                                            >
+                                              Key Points Raised *
+                                            </Label>
+                                            <Textarea
+                                              id={`key-points-${feedback.id}`}
+                                              value={feedback.keyPointsRaised}
+                                              onChange={(e) =>
+                                                handleUpdateStaffFeedback(
+                                                  feedback.id,
+                                                  "keyPointsRaised",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Record the key points, concerns, or feedback shared by the staff member..."
+                                              className="mt-1 min-h-[100px]"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <Label className="text-base font-medium">
+                                              Any concerns raised?
+                                            </Label>
+                                            <div className="flex items-center space-x-6 mt-2">
+                                              <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`staff-concerns-yes-${feedback.id}`}
+                                                  checked={
+                                                    feedback.concernsRaised
+                                                  }
+                                                  onCheckedChange={(checked) =>
+                                                    handleUpdateStaffFeedback(
+                                                      feedback.id,
+                                                      "concernsRaised",
+                                                      !!checked,
+                                                    )
+                                                  }
+                                                />
+                                                <Label
+                                                  htmlFor={`staff-concerns-yes-${feedback.id}`}
+                                                >
+                                                  Yes
+                                                </Label>
+                                              </div>
+                                              <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`staff-concerns-no-${feedback.id}`}
+                                                  checked={
+                                                    !feedback.concernsRaised
+                                                  }
+                                                  onCheckedChange={(checked) =>
+                                                    handleUpdateStaffFeedback(
+                                                      feedback.id,
+                                                      "concernsRaised",
+                                                      !checked,
+                                                    )
+                                                  }
+                                                />
+                                                <Label
+                                                  htmlFor={`staff-concerns-no-${feedback.id}`}
+                                                >
+                                                  No
+                                                </Label>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center space-x-2 pt-2 border-t">
+                                            <Checkbox
+                                              id={`staff-include-ai-${feedback.id}`}
+                                              checked={
+                                                feedback.includeInAISummary
+                                              }
+                                              onCheckedChange={(checked) =>
+                                                handleUpdateStaffFeedback(
+                                                  feedback.id,
+                                                  "includeInAISummary",
+                                                  !!checked,
+                                                )
+                                              }
+                                            />
+                                            <Label
+                                              htmlFor={`staff-include-ai-${feedback.id}`}
+                                              className="text-sm"
+                                            >
+                                              Include this interview in the
+                                              AI-generated summary
+                                            </Label>
+                                          </div>
+                                        </div>
+                                      ),
+                                    )}
+
+                                    <Button
+                                      onClick={handleAddStaffFeedback}
+                                      variant="outline"
+                                      className="w-full"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add Another Staff Interview
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {reportData.staffFeedback.length === 0 && (
+                                  <Button
+                                    onClick={handleAddStaffFeedback}
+                                    variant="outline"
+                                    className="w-full"
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Staff Interview
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Children's Feedback Section - Only show in Voice of the Child section */}
+                          {section.id === "voice" && (
+                            <div className="mt-8 pt-6 border-t">
+                              <div className="space-y-6">
+                                <div>
+                                  <Label className="text-base font-medium">
+                                    Did you speak with any {terminology.plural}?
+                                  </Label>
+                                  <div className="flex items-center space-x-6 mt-2">
+                                    <div className="flex items-center space-x-2">
+                                      <Checkbox
+                                        id="spoke-with-children-yes"
+                                        checked={reportData.spokeWithChildren}
+                                        onCheckedChange={(checked) => {
+                                          setReportData((prev) => ({
+                                            ...prev,
+                                            spokeWithChildren: !!checked,
+                                            childrenFeedback: checked
+                                              ? prev.childrenFeedback
+                                              : [],
+                                          }));
+                                        }}
+                                      />
+                                      <Label htmlFor="spoke-with-children-yes">
+                                        Yes
+                                      </Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Checkbox
+                                        id="spoke-with-children-no"
+                                        checked={!reportData.spokeWithChildren}
+                                        onCheckedChange={(checked) => {
+                                          setReportData((prev) => ({
+                                            ...prev,
+                                            spokeWithChildren: !checked,
+                                            childrenFeedback: checked
+                                              ? []
+                                              : prev.childrenFeedback,
+                                          }));
+                                        }}
+                                      />
+                                      <Label htmlFor="spoke-with-children-no">
+                                        No
+                                      </Label>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {reportData.spokeWithChildren && (
+                                  <div className="space-y-6">
+                                    {reportData.childrenFeedback.map(
+                                      (feedback, index) => (
+                                        <div
+                                          key={feedback.id}
+                                          className="border rounded-lg p-4 space-y-4 bg-gray-50"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-lg">
+                                              {terminology.capitalSingular}{" "}
+                                              {index + 1}
+                                            </h4>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleRemoveChildFeedback(
+                                                  feedback.id,
+                                                )
+                                              }
+                                              className="text-red-600 hover:text-red-700"
+                                            >
+                                              <X className="h-4 w-4 mr-1" />
+                                              Remove
+                                            </Button>
+                                          </div>
+
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                              <Label
+                                                htmlFor={`initials-${feedback.id}`}
+                                              >
+                                                {terminology.capitalSingular}{" "}
+                                                Initials or Code Name *
+                                              </Label>
+                                              <Input
+                                                id={`initials-${feedback.id}`}
+                                                value={feedback.initialsOrCode}
+                                                onChange={(e) =>
+                                                  handleUpdateChildFeedback(
+                                                    feedback.id,
+                                                    "initialsOrCode",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                placeholder="e.g., A.B. or Child1"
+                                                className="mt-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label
+                                                htmlFor={`age-${feedback.id}`}
+                                              >
+                                                Age (optional)
+                                              </Label>
+                                              <Input
+                                                id={`age-${feedback.id}`}
+                                                value={feedback.age}
+                                                onChange={(e) =>
+                                                  handleUpdateChildFeedback(
+                                                    feedback.id,
+                                                    "age",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                placeholder="e.g., 14"
+                                                className="mt-1"
+                                              />
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <Label
+                                              htmlFor={`summary-${feedback.id}`}
+                                            >
+                                              Summary of what they shared *
+                                            </Label>
+                                            <Textarea
+                                              id={`summary-${feedback.id}`}
+                                              value={feedback.summary}
+                                              onChange={(e) =>
+                                                handleUpdateChildFeedback(
+                                                  feedback.id,
+                                                  "summary",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder={`Record the ${terminology.singular}'s views, feelings, and feedback about their experience...`}
+                                              className="mt-1 min-h-[100px]"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <Label className="text-base font-medium">
+                                              Any concerns raised?
+                                            </Label>
+                                            <div className="flex items-center space-x-6 mt-2">
+                                              <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`concerns-yes-${feedback.id}`}
+                                                  checked={
+                                                    feedback.concernsRaised
+                                                  }
+                                                  onCheckedChange={(checked) =>
+                                                    handleUpdateChildFeedback(
+                                                      feedback.id,
+                                                      "concernsRaised",
+                                                      !!checked,
+                                                    )
+                                                  }
+                                                />
+                                                <Label
+                                                  htmlFor={`concerns-yes-${feedback.id}`}
+                                                >
+                                                  Yes
+                                                </Label>
+                                              </div>
+                                              <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`concerns-no-${feedback.id}`}
+                                                  checked={
+                                                    !feedback.concernsRaised
+                                                  }
+                                                  onCheckedChange={(checked) =>
+                                                    handleUpdateChildFeedback(
+                                                      feedback.id,
+                                                      "concernsRaised",
+                                                      !checked,
+                                                    )
+                                                  }
+                                                />
+                                                <Label
+                                                  htmlFor={`concerns-no-${feedback.id}`}
+                                                >
+                                                  No
+                                                </Label>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <Label
+                                              htmlFor={`action-${feedback.id}`}
+                                            >
+                                              Action taken or follow-up
+                                              (optional)
+                                            </Label>
+                                            <Textarea
+                                              id={`action-${feedback.id}`}
+                                              value={feedback.actionTaken}
+                                              onChange={(e) =>
+                                                handleUpdateChildFeedback(
+                                                  feedback.id,
+                                                  "actionTaken",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Describe any immediate actions taken or follow-up planned..."
+                                              className="mt-1 min-h-[80px]"
+                                            />
+                                          </div>
+
+                                          <div className="flex items-center space-x-2 pt-2 border-t">
+                                            <Checkbox
+                                              id={`include-ai-${feedback.id}`}
+                                              checked={
+                                                feedback.includeInAISummary
+                                              }
+                                              onCheckedChange={(checked) =>
+                                                handleUpdateChildFeedback(
+                                                  feedback.id,
+                                                  "includeInAISummary",
+                                                  !!checked,
+                                                )
+                                              }
+                                            />
+                                            <Label
+                                              htmlFor={`include-ai-${feedback.id}`}
+                                              className="text-sm"
+                                            >
+                                              Include this feedback in the
+                                              AI-generated summary
+                                            </Label>
+                                          </div>
+                                        </div>
+                                      ),
+                                    )}
+
+                                    <Button
+                                      onClick={handleAddChildFeedback}
+                                      variant="outline"
+                                      className="w-full"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add Another {terminology.capitalSingular}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </>
                       )}
                     </AccordionContent>
@@ -1954,9 +3000,28 @@ const ReportBuilder = () => {
           <div className="sticky bottom-0 bg-white border-t p-4 -mx-6">
             <div className="flex items-center justify-between max-w-4xl mx-auto">
               <div className="text-sm text-gray-500">
-                {lastSaved
-                  ? `Last saved: ${lastSaved.toLocaleTimeString()}`
-                  : "Not saved yet"}
+                {lastSaved ? (
+                  <div className="flex items-center space-x-2">
+                    <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+                    {!isOnline && hasOfflineChanges && (
+                      <Badge variant="secondary" className="text-xs">
+                        <CloudOff className="h-3 w-3 mr-1" />
+                        Offline
+                      </Badge>
+                    )}
+                    {isOnline && !hasOfflineChanges && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs bg-green-100 text-green-800"
+                      >
+                        <Cloud className="h-3 w-3 mr-1" />
+                        Synced
+                      </Badge>
+                    )}
+                  </div>
+                ) : (
+                  "Not saved yet"
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Button variant="outline" onClick={() => handleSaveDraft()}>

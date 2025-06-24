@@ -4,6 +4,7 @@ import routes from "tempo-routes";
 import Home from "./components/home";
 import ReportBuilder from "./components/ReportBuilder";
 import ProfileSettings from "./components/ProfileSettings";
+import { Toaster } from "./components/ui/toaster";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/profile" element={<ProfileSettings />} />
         </Routes>
         {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+        <Toaster />
       </>
     </Suspense>
   );
