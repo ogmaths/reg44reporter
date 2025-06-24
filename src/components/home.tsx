@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -49,6 +50,7 @@ interface Home {
   nextVisit?: string;
   status: "active" | "pending" | "inactive";
   reportsCount: number;
+  lastReportDate?: string;
 }
 
 const mockHomes: Home[] = [
@@ -63,6 +65,7 @@ const mockHomes: Home[] = [
     nextVisit: "2024-02-15",
     status: "active",
     reportsCount: 12,
+    lastReportDate: "2024-01-15",
   },
   {
     id: "2",
@@ -74,6 +77,7 @@ const mockHomes: Home[] = [
     lastVisit: "2024-01-20",
     status: "active",
     reportsCount: 8,
+    lastReportDate: "2023-12-20",
   },
   {
     id: "3",
@@ -84,10 +88,12 @@ const mockHomes: Home[] = [
     capacity: 6,
     status: "pending",
     reportsCount: 3,
+    lastReportDate: "2023-11-10",
   },
 ];
 
 const HomeDashboard = () => {
+  const navigate = useNavigate();
   const [homes, setHomes] = useState<Home[]>(mockHomes);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRegion, setFilterRegion] = useState("all");
@@ -152,6 +158,36 @@ const HomeDashboard = () => {
       : "Supported Accommodation";
   };
 
+  const isVisitDue = (home: Home) => {
+    if (!home.lastReportDate) return true;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const lastReportDate = new Date(home.lastReportDate);
+
+    return (
+      lastReportDate.getMonth() !== currentMonth ||
+      lastReportDate.getFullYear() !== currentYear
+    );
+  };
+
+  const getVisitStatus = (home: Home) => {
+    if (!isVisitDue(home)) return null;
+
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+
+    // Red badge if past mid-month and no visit this month
+    if (dayOfMonth > 15) {
+      return { color: "destructive", text: "Overdue" };
+    }
+    // Yellow badge if visit due but not overdue
+    return { color: "secondary", text: "Due" };
+  };
+
+  const visitsDueCount = homes.filter(isVisitDue).length;
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -209,9 +245,10 @@ const HomeDashboard = () => {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {homes.filter((h) => h.nextVisit).length}
+              <div className="text-2xl font-bold text-orange-600">
+                {visitsDueCount}
               </div>
+              <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
         </div>
@@ -348,82 +385,97 @@ const HomeDashboard = () => {
           </Dialog>
         </div>
 
-        {/* Homes Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredHomes.map((home) => (
-            <Card
-              key={home.id}
-              className="bg-white hover:shadow-lg transition-shadow cursor-pointer"
-            >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{home.name}</CardTitle>
-                    <CardDescription className="flex items-center mt-1">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {home.region}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getStatusColor(home.status)}>
-                    {home.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-gray-600">{home.address}</p>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Type:</span>
-                    <span className="font-medium">
-                      {getTypeLabel(home.type)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Capacity:</span>
-                    <span className="font-medium">
-                      {home.capacity} residents
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Reports:</span>
-                    <span className="font-medium">{home.reportsCount}</span>
-                  </div>
-                  {home.lastVisit && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Last Visit:</span>
-                      <span className="font-medium">
-                        {new Date(home.lastVisit).toLocaleDateString()}
-                      </span>
+        {/* Homes List */}
+        <div className="space-y-4">
+          {filteredHomes.map((home) => {
+            const visitStatus = getVisitStatus(home);
+            return (
+              <Card
+                key={home.id}
+                className="bg-white hover:shadow-lg transition-shadow cursor-pointer"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {home.name}
+                          </h3>
+                          <div className="flex items-center text-sm text-gray-600 mt-1">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            {home.region} • {getTypeLabel(home.type)}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getStatusColor(home.status)}>
+                            {home.status}
+                          </Badge>
+                          {visitStatus && (
+                            <Badge variant={visitStatus.color as any}>
+                              Visit {visitStatus.text}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Address:</span>
+                          <p className="font-medium truncate">{home.address}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Capacity:</span>
+                          <p className="font-medium">
+                            {home.capacity} residents
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Reports:</span>
+                          <p className="font-medium">{home.reportsCount}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Last Report:</span>
+                          <p className="font-medium">
+                            {home.lastReportDate
+                              ? new Date(
+                                  home.lastReportDate,
+                                ).toLocaleDateString()
+                              : "No reports"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  {home.nextVisit && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Next Visit:</span>
-                      <span className="font-medium text-blue-600">
-                        {new Date(home.nextVisit).toLocaleDateString()}
-                      </span>
+
+                    <div className="flex items-center space-x-2 ml-6">
+                      <Button size="sm" variant="outline">
+                        <FileText className="h-4 w-4 mr-1" />
+                        Reports
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Schedule
+                      </Button>
+                      <Button
+                        size="sm"
+                        className={
+                          visitStatus ? "bg-orange-600 hover:bg-orange-700" : ""
+                        }
+                        onClick={() =>
+                          navigate(
+                            `/report/new?homeName=${encodeURIComponent(home.name)}&homeAddress=${encodeURIComponent(home.address)}&homeId=${home.id}`,
+                          )
+                        }
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        New Visit
+                      </Button>
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" variant="outline" className="flex-1">
-                    <FileText className="h-4 w-4 mr-1" />
-                    Reports
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Schedule
-                  </Button>
-                  <Button size="sm" className="flex-1">
-                    <Plus className="h-4 w-4 mr-1" />
-                    New Visit
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {filteredHomes.length === 0 && (
