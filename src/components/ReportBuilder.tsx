@@ -330,12 +330,14 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({
             <Button
               variant="outline"
               onClick={() => setActiveTab(getPreviousTab(activeTab))}
+              disabled={activeTab === "details"}
             >
               Previous
             </Button>
             <Button
               variant="outline"
               onClick={() => setActiveTab(getNextTab(activeTab))}
+              disabled={activeTab === "actions"}
             >
               Next
             </Button>
@@ -397,7 +399,7 @@ const getPreviousTab = (currentTab: string): string => {
     "actions",
   ];
   const currentIndex = tabs.indexOf(currentTab);
-  return currentIndex > 0 ? tabs[currentIndex - 1] : currentTab;
+  return currentIndex > 0 ? tabs[currentIndex - 1] : tabs[0];
 };
 
 const getNextTab = (currentTab: string): string => {
@@ -409,7 +411,9 @@ const getNextTab = (currentTab: string): string => {
     "actions",
   ];
   const currentIndex = tabs.indexOf(currentTab);
-  return currentIndex < tabs.length - 1 ? tabs[currentIndex + 1] : currentTab;
+  return currentIndex < tabs.length - 1
+    ? tabs[currentIndex + 1]
+    : tabs[tabs.length - 1];
 };
 
 export default ReportBuilder;
