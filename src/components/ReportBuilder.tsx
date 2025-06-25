@@ -132,7 +132,6 @@ interface ReportData {
   childrenFeedback: ChildFeedback[];
   staffFeedback: StaffFeedback[];
   documentChecklist: DocumentChecklistItem[];
-  documentChecklistNotes: string;
 }
 
 interface ReportVersion {
@@ -180,43 +179,47 @@ const STAFF_ROLES = [
 ];
 
 const REGISTERED_HOME_DOCUMENTS = [
+  // Child-Focused
   "Care Plan",
-  "Complaints / Concerns Log",
-  "Contact Arrangements",
-  "Daily Logs",
-  "Fire Safety Log",
-  "Health & Safety Assessments",
-  "Health / Education Plans",
-  "Incident / Accident Reports",
-  "Internal Reg 45 Reports (Manager's QA)",
-  "Life Story / Key Work Notes",
-  "Missing from Home Records",
-  "Notifications to Ofsted (serious incidents etc.)",
   "Placement Plan / Agreement",
-  "Recruitment Files (DBS, references)",
   "Risk Assessments",
-  "Rota (last 2 weeks min.)",
-  "Safeguarding Policy",
+  "Health / Education Plans",
+  "Life Story / Key Work Notes",
+  "Contact Arrangements",
+  // Daily Practice
+  "Daily Logs",
+  "Incident / Accident Reports",
+  "Complaints / Concerns Log",
   "Sanctions / Rewards Log",
+  "Missing from Home Records",
+  // Staffing & Records
+  "Rota (last 2 weeks min.)",
   "Staff List with Roles",
-  "Statement of Purpose",
   "Supervision Records",
   "Training Matrix or Certificates",
+  "Recruitment Files (DBS, references)",
+  // Management & Oversight
+  "Statement of Purpose",
+  "Safeguarding Policy",
+  "Fire Safety Log",
+  "Health & Safety Assessments",
+  "Internal Reg 45 Reports (Manager's QA)",
   "Visitors' Log",
+  "Notifications to Ofsted (serious incidents etc.)",
 ];
 
 const UNREGISTERED_SETTING_DOCUMENTS = [
   "Care Plan",
-  "Daily Logs",
-  "DBS Proof",
-  "Draft Statement of Purpose",
-  "Incident Records",
-  "Key Work Notes",
-  "LA Agreement or Referral Info",
   "Placement Agreement",
-  "Registration Intent Evidence",
+  "Key Work Notes",
+  "Daily Logs",
+  "Incident Records",
   "Staff Rota",
   "Training Evidence",
+  "DBS Proof",
+  "Draft Statement of Purpose",
+  "Registration Intent Evidence",
+  "LA Agreement or Referral Info",
 ];
 
 const ReportBuilder = () => {
@@ -343,9 +346,6 @@ const ReportBuilder = () => {
         }
         if (!parsedData.reportData.documentChecklist) {
           parsedData.reportData.documentChecklist = [];
-        }
-        if (!parsedData.reportData.documentChecklistNotes) {
-          parsedData.reportData.documentChecklistNotes = "";
         }
         setReportData(parsedData.reportData);
         setAiGeneratedContent(parsedData.aiGeneratedContent || "");
@@ -2212,64 +2212,37 @@ const ReportBuilder = () => {
                   </div>
 
                   {reportData.documentChecklist.length > 0 && (
-                    <>
-                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">
-                              Progress Summary
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {
-                                reportData.documentChecklist.filter(
-                                  (item) => item.checked,
-                                ).length
-                              }{" "}
-                              of {reportData.documentChecklist.length} documents
-                              reviewed
-                            </p>
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            Progress Summary
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {
+                              reportData.documentChecklist.filter(
+                                (item) => item.checked,
+                              ).length
+                            }{" "}
+                            of {reportData.documentChecklist.length} documents
+                            reviewed
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {Math.round(
+                              (reportData.documentChecklist.filter(
+                                (item) => item.checked,
+                              ).length /
+                                reportData.documentChecklist.length) *
+                                100,
+                            )}
+                            %
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-blue-600">
-                              {Math.round(
-                                (reportData.documentChecklist.filter(
-                                  (item) => item.checked,
-                                ).length /
-                                  reportData.documentChecklist.length) *
-                                  100,
-                              )}
-                              %
-                            </div>
-                            <p className="text-xs text-gray-600">Complete</p>
-                          </div>
+                          <p className="text-xs text-gray-600">Complete</p>
                         </div>
                       </div>
-
-                      <div className="mt-6">
-                        <Label
-                          htmlFor="document-checklist-notes"
-                          className="text-sm font-medium text-gray-700"
-                        >
-                          Overall Notes on Document Review
-                        </Label>
-                        <p className="text-xs text-gray-600 mt-1 mb-2">
-                          Add any overall comments about concerning documents or
-                          issues identified during the document review.
-                        </p>
-                        <Textarea
-                          id="document-checklist-notes"
-                          value={reportData.documentChecklistNotes}
-                          onChange={(e) =>
-                            setReportData((prev) => ({
-                              ...prev,
-                              documentChecklistNotes: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter any concerns or observations about the documents reviewed..."
-                          className="min-h-[80px]"
-                        />
-                      </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </CardContent>
