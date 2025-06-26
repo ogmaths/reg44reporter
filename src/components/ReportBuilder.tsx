@@ -1774,6 +1774,29 @@ Kind regards,
       pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
     }
 
+    // Independent Person's Final Comments
+    if (reportData.finalComments.safeguardingOpinion || reportData.finalComments.wellbeingOpinion) {
+      checkNewPage(50);
+      addWrappedText("Independent Person's Final Comments", 14, true);
+      yPosition += 10;
+      
+      if (reportData.finalComments.safeguardingOpinion) {
+        addWrappedText(`Safeguarding Opinion: ${reportData.finalComments.safeguardingOpinion.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}`, 11, true);
+        if (reportData.finalComments.safeguardingExplanation) {
+          addWrappedText(`Explanation: ${reportData.finalComments.safeguardingExplanation}`, 10);
+        }
+        yPosition += 5;
+      }
+      
+      if (reportData.finalComments.wellbeingOpinion) {
+        addWrappedText(`Wellbeing Opinion: ${reportData.finalComments.wellbeingOpinion.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}`, 11, true);
+        if (reportData.finalComments.wellbeingExplanation) {
+          addWrappedText(`Explanation: ${reportData.finalComments.wellbeingExplanation}`, 10);
+        }
+        yPosition += 5;
+      }
+    }
+
     // Add footer to last page
     addFooter();
 
@@ -2334,6 +2357,46 @@ Kind regards,
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {(reportData.finalComments.safeguardingOpinion || reportData.finalComments.wellbeingOpinion) && (
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="font-semibold text-lg mb-2">
+                  Independent Person's Final Comments
+                </h3>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-700 bg-green-50 p-3 rounded">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="font-medium text-green-800 mb-1">
+                          Safeguarding Opinion:
+                        </p>
+                        <p className="capitalize">
+                          {reportData.finalComments.safeguardingOpinion ? reportData.finalComments.safeguardingOpinion.replace("-", " ") : "Not specified"}
+                        </p>
+                        {reportData.finalComments.safeguardingExplanation && (
+                          <p className="mt-2 text-xs text-gray-600">
+                            <strong>Explanation:</strong> {reportData.finalComments.safeguardingExplanation}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-800 mb-1">
+                          Wellbeing Opinion:
+                        </p>
+                        <p className="capitalize">
+                          {reportData.finalComments.wellbeingOpinion ? reportData.finalComments.wellbeingOpinion.replace("-", " ") : "Not specified"}
+                        </p>
+                        {reportData.finalComments.wellbeingExplanation && (
+                          <p className="mt-2 text-xs text-gray-600">
+                            <strong>Explanation:</strong> {reportData.finalComments.wellbeingExplanation}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -4337,6 +4400,251 @@ Kind regards,
           </Card>
 
 
+
+          {/* Independent Person's Final Comments Section */}
+          <Card
+            className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
+          >
+            {!isFormUnlocked && (
+              <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
+                <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
+                  Select a setting type above to unlock this section
+                </div>
+              </div>
+            )}
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Independent Person's Final Comments
+              </CardTitle>
+              <CardDescription>
+                Complete the legally required elements for Regulation 44.4. These responses will be included in the structured PDF export.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Safeguarding Opinion */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">
+                    Are children effectively safeguarded? *
+                  </Label>
+                  <div className="flex items-center space-x-6 mt-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-yes"
+                        name="safeguarding-opinion"
+                        value="yes"
+                        checked={reportData.finalComments.safeguardingOpinion === "yes"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-yes" className="text-sm font-medium">
+                        Yes
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-no"
+                        name="safeguarding-opinion"
+                        value="no"
+                        checked={reportData.finalComments.safeguardingOpinion === "no"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-no" className="text-sm font-medium">
+                        No
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-not-sure"
+                        name="safeguarding-opinion"
+                        value="not-sure"
+                        checked={reportData.finalComments.safeguardingOpinion === "not-sure"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-not-sure" className="text-sm font-medium">
+                        Not sure
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+                
+                {(reportData.finalComments.safeguardingOpinion === "no" || reportData.finalComments.safeguardingOpinion === "not-sure") && (
+                  <div>
+                    <Label htmlFor="safeguarding-explanation" className="text-sm font-medium">
+                      Brief explanation (required) *
+                    </Label>
+                    <Textarea
+                      id="safeguarding-explanation"
+                      value={reportData.finalComments.safeguardingExplanation}
+                      onChange={(e) =>
+                        setReportData((prev) => ({
+                          ...prev,
+                          finalComments: {
+                            ...prev.finalComments,
+                            safeguardingExplanation: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Please explain your concerns or uncertainties about safeguarding..."
+                      className="mt-2 min-h-[80px]"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Wellbeing Opinion */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">
+                    Does the home promote children's wellbeing? *
+                  </Label>
+                  <div className="flex items-center space-x-6 mt-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-yes"
+                        name="wellbeing-opinion"
+                        value="yes"
+                        checked={reportData.finalComments.wellbeingOpinion === "yes"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-yes" className="text-sm font-medium">
+                        Yes
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-no"
+                        name="wellbeing-opinion"
+                        value="no"
+                        checked={reportData.finalComments.wellbeingOpinion === "no"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-no" className="text-sm font-medium">
+                        No
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-not-sure"
+                        name="wellbeing-opinion"
+                        value="not-sure"
+                        checked={reportData.finalComments.wellbeingOpinion === "not-sure"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-not-sure" className="text-sm font-medium">
+                        Not sure
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+                
+                {(reportData.finalComments.wellbeingOpinion === "no" || reportData.finalComments.wellbeingOpinion === "not-sure") && (
+                  <div>
+                    <Label htmlFor="wellbeing-explanation" className="text-sm font-medium">
+                      Brief explanation (required) *
+                    </Label>
+                    <Textarea
+                      id="wellbeing-explanation"
+                      value={reportData.finalComments.wellbeingExplanation}
+                      onChange={(e) =>
+                        setReportData((prev) => ({
+                          ...prev,
+                          finalComments: {
+                            ...prev.finalComments,
+                            wellbeingExplanation: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Please explain your concerns or uncertainties about wellbeing promotion..."
+                      className="mt-2 min-h-[80px]"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Information Note */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Regulation 44.4 Compliance</p>
+                    <p>
+                      These responses fulfill the legal requirements for Independent Person reports under Regulation 44.4. 
+                      The data will be mapped to the following PDF fields:
+                    </p>
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                      <li><strong>IP_SafeguardingOpinion:</strong> Safeguarding response</li>
+                      <li><strong>IP_SafeguardingExplanation:</strong> Safeguarding explanation (if applicable)</li>
+                      <li><strong>IP_WellbeingOpinion:</strong> Wellbeing response</li>
+                      <li><strong>IP_WellbeingExplanation:</strong> Wellbeing explanation (if applicable)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Sticky Action Bar */}
           <div className="sticky bottom-0 bg-white border-t p-4 -mx-6">
