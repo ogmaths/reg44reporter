@@ -139,7 +139,7 @@ interface ReportData {
   visitDate: string;
   visitType: "announced" | "unannounced" | "";
   settingType: "registered_childrens_home" | "unregistered_provision" | "";
-  formType: "quick" | "full" | "";
+  formType: "quick" | "";
   sections: ReportSection[];
   actions: Action[];
   recommendationsSummary: string;
@@ -163,7 +163,7 @@ interface ReportVersion {
 }
 
 type ViewMode = "create" | "review";
-type FormType = "quick" | "full";
+type FormType = "quick";
 type FormStep = "selection" | "form";
 
 const REGISTERED_CHILDRENS_HOME_SECTIONS = [
@@ -410,8 +410,8 @@ const ReportBuilder = () => {
         if (!parsedData.reportData.documentChecklist) {
           parsedData.reportData.documentChecklist = [];
         }
-        if (!parsedData.reportData.formType) {
-          parsedData.reportData.formType = "quick"; // Default to quick form for backward compatibility
+        if (!parsedData.reportData.formType || parsedData.reportData.formType === "full") {
+          parsedData.reportData.formType = "quick"; // Default to quick form, convert full to quick
         }
         // Ensure quick form fields exist for backward compatibility
         if (parsedData.reportData.safeguardingOpinion === undefined) {
@@ -627,6 +627,12 @@ const ReportBuilder = () => {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
+    
+    // Disable autopause to prevent automatic stopping
+    if ('webkitSpeechRecognition' in window) {
+      recognition.maxAlternatives = 1;
+      recognition.serviceURI = '';
+    }
 
     setReportData((prev) => ({
       ...prev,
@@ -1239,6 +1245,16 @@ const ReportBuilder = () => {
 
   const terminology = getChildTerminology();
 
+  // Helper function to get form type display name
+  const getFormTypeDisplayName = (formType: FormType) => {
+    switch (formType) {
+      case "quick":
+        return "Report Form";
+      default:
+        return "Report Form";
+    }
+  };
+
   // Handle setting type change and update sections accordingly
   const handleSettingTypeChange = (
     settingType: "registered_childrens_home" | "unregistered_provision",
@@ -1774,29 +1790,6 @@ Kind regards,
       pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
     }
 
-    // Independent Person's Final Comments
-    if (reportData.finalComments.safeguardingOpinion || reportData.finalComments.wellbeingOpinion) {
-      checkNewPage(50);
-      addWrappedText("Independent Person's Final Comments", 14, true);
-      yPosition += 10;
-      
-      if (reportData.finalComments.safeguardingOpinion) {
-        addWrappedText(`Safeguarding Opinion: ${reportData.finalComments.safeguardingOpinion.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}`, 11, true);
-        if (reportData.finalComments.safeguardingExplanation) {
-          addWrappedText(`Explanation: ${reportData.finalComments.safeguardingExplanation}`, 10);
-        }
-        yPosition += 5;
-      }
-      
-      if (reportData.finalComments.wellbeingOpinion) {
-        addWrappedText(`Wellbeing Opinion: ${reportData.finalComments.wellbeingOpinion.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}`, 11, true);
-        if (reportData.finalComments.wellbeingExplanation) {
-          addWrappedText(`Explanation: ${reportData.finalComments.wellbeingExplanation}`, 10);
-        }
-        yPosition += 5;
-      }
-    }
-
     // Add footer to last page
     addFooter();
 
@@ -1893,43 +1886,7 @@ Kind regards,
     setFormTypeError("");
   };
 
-  // Handle form type switching
-  const handleFormTypeSwitch = (newFormType: FormType) => {
-    if (newFormType === reportData.formType) return;
-    
-    setPendingFormType(newFormType);
-    setShowFormSwitchDialog(true);
-  };
 
-  // Confirm form type switch
-  const confirmFormTypeSwitch = () => {
-    if (pendingFormType) {
-      setReportData((prev) => ({
-        ...prev,
-        formType: pendingFormType,
-      }));
-      
-      toast({
-        title: "Form Type Changed",
-        description: `Switched to ${pendingFormType === "quick" ? "Quick Form" : "Full Form"}. Your progress has been preserved.`,
-        duration: 3000,
-      });
-    }
-    
-    setShowFormSwitchDialog(false);
-    setPendingFormType(null);
-  };
-
-  // Cancel form type switch
-  const cancelFormTypeSwitch = () => {
-    setShowFormSwitchDialog(false);
-    setPendingFormType(null);
-  };
-
-  // Get form type display name
-  const getFormTypeDisplayName = (formType: string) => {
-    return formType === "quick" ? "Quick Form" : "Full Form";
-  };
 
   // Render form type selection screen
   const renderFormTypeSelection = () => (
@@ -1937,10 +1894,10 @@ Kind regards,
       <Card className="bg-white">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl mb-2">
-            Choose Your Report Format
+            Report Builder
           </CardTitle>
           <CardDescription className="text-base">
-            How would you like to complete this visit report?
+            Ready to begin your visit report?
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1966,58 +1923,23 @@ Kind regards,
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Quick Form (Current format)
+                    Report Form
                   </h3>
                   <p className="text-gray-600 mb-3">
-                    Fast overview with open notes – ideal for routine visits or well-known homes.
+                    Comprehensive report format with structured sections for detailed observations and findings.
                   </p>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Badge variant="secondary">Recommended</Badge>
+                    <Badge variant="secondary">Standard Format</Badge>
                     <span>•</span>
-                    <span>Faster completion</span>
+                    <span>Structured sections</span>
                     <span>•</span>
-                    <span>Open-ended sections</span>
+                    <span>Complete documentation</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Full Form Option */}
-            <div 
-              className={`border-2 rounded-lg p-6 cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50 ${
-                reportData.formType === "full" ? "border-blue-500 bg-blue-50" : "border-gray-200"
-              }`}
-              onClick={() => handleFormTypeSelection("full")}
-            >
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 mt-1">
-                  <div className={`w-4 h-4 rounded-full border-2 ${
-                    reportData.formType === "full" 
-                      ? "border-blue-500 bg-blue-500" 
-                      : "border-gray-300"
-                  }`}>
-                    {reportData.formType === "full" && (
-                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Full Form
-                  </h3>
-                  <p className="text-gray-600 mb-3">
-                    Detailed report with structured compliance fields, guided prompts, checklists, and structured evidence capture for deeper insight.
-                  </p>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Badge variant="outline">Comprehensive</Badge>
-                    <span>•</span>
-                    <span>Guided prompts</span>
-                    <span>•</span>
-                    <span>Structured sections</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* Info Box */}
@@ -2027,8 +1949,7 @@ Kind regards,
               <div className="text-sm text-blue-800">
                 <p className="font-medium mb-1">Good to know:</p>
                 <p>
-                  This selection can be changed at any time. All data entered in shared fields 
-                  (e.g., home name, visit date, recommendations) will be preserved when switching between formats.
+                  This is the standard report format that includes all necessary sections for comprehensive documentation of your visit.
                 </p>
               </div>
             </div>
@@ -2058,7 +1979,7 @@ Kind regards,
               className="px-8 py-2"
               disabled={!reportData.formType}
             >
-              Continue with {reportData.formType ? getFormTypeDisplayName(reportData.formType) : "Selected Form"}
+Continue with Report Form
             </Button>
           </div>
         </CardContent>
@@ -2361,46 +2282,6 @@ Kind regards,
               </div>
             )}
 
-            {(reportData.finalComments.safeguardingOpinion || reportData.finalComments.wellbeingOpinion) && (
-              <div className="border-l-4 border-green-500 pl-4">
-                <h3 className="font-semibold text-lg mb-2">
-                  Independent Person's Final Comments
-                </h3>
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-700 bg-green-50 p-3 rounded">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="font-medium text-green-800 mb-1">
-                          Safeguarding Opinion:
-                        </p>
-                        <p className="capitalize">
-                          {reportData.finalComments.safeguardingOpinion ? reportData.finalComments.safeguardingOpinion.replace("-", " ") : "Not specified"}
-                        </p>
-                        {reportData.finalComments.safeguardingExplanation && (
-                          <p className="mt-2 text-xs text-gray-600">
-                            <strong>Explanation:</strong> {reportData.finalComments.safeguardingExplanation}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-green-800 mb-1">
-                          Wellbeing Opinion:
-                        </p>
-                        <p className="capitalize">
-                          {reportData.finalComments.wellbeingOpinion ? reportData.finalComments.wellbeingOpinion.replace("-", " ") : "Not specified"}
-                        </p>
-                        {reportData.finalComments.wellbeingExplanation && (
-                          <p className="mt-2 text-xs text-gray-600">
-                            <strong>Explanation:</strong> {reportData.finalComments.wellbeingExplanation}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {childFriendlySummary && (
               <div className="border-l-4 border-purple-500 pl-4">
                 <h3 className="font-semibold text-lg mb-2">
@@ -2572,31 +2453,14 @@ Kind regards,
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  if (formStep === "form" && reportData.formType) {
-                    setFormStep("selection");
-                  } else {
-                    navigate("/");
-                  }
-                }}
+                onClick={() => navigate("/")}
                 className="flex items-center"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                {formStep === "form" && reportData.formType ? "Back to Form Selection" : "Back to Dashboard"}
+Back to Dashboard
               </Button>
               
-              {/* Form Type Switch Button - Only show when in form step */}
-              {formStep === "form" && reportData.formType && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFormTypeSwitch(reportData.formType === "quick" ? "full" : "quick")}
-                  className="flex items-center"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Switch to {reportData.formType === "quick" ? "Full Form" : "Quick Form"}
-                </Button>
-              )}
+
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
                   {reportData.settingType === "unregistered_provision"
@@ -2630,47 +2494,7 @@ Kind regards,
         </div>
       </div>
 
-      {/* Form Type Switch Dialog */}
-      <Dialog open={showFormSwitchDialog} onOpenChange={setShowFormSwitchDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Switch Form Type</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to switch to {pendingFormType ? getFormTypeDisplayName(pendingFormType) : "the other form type"}?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">Your progress will be preserved</p>
-                  <p>
-                    All data entered in shared fields (home name, visit date, recommendations, etc.) 
-                    will be kept when switching between form types.
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex space-x-2">
-              <Button
-                onClick={confirmFormTypeSwitch}
-                className="flex-1"
-              >
-                Yes, Switch Forms
-              </Button>
-              <Button
-                variant="outline"
-                onClick={cancelFormTypeSwitch}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Sync Dialog */}
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
@@ -3989,6 +3813,251 @@ Kind regards,
             </CardContent>
           </Card>
 
+          {/* Independent Person's Final Comments Section */}
+          <Card
+            className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
+          >
+            {!isFormUnlocked && (
+              <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
+                <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
+                  Select a setting type above to unlock this section
+                </div>
+              </div>
+            )}
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Independent Person's Final Comments
+              </CardTitle>
+              <CardDescription>
+                Complete the legally required elements for Regulation 44.4. These responses will be included in the structured PDF export.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Safeguarding Opinion */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">
+                    Are children effectively safeguarded? *
+                  </Label>
+                  <div className="flex items-center space-x-6 mt-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-yes"
+                        name="safeguarding-opinion"
+                        value="yes"
+                        checked={reportData.finalComments.safeguardingOpinion === "yes"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-yes" className="text-sm font-medium">
+                        Yes
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-no"
+                        name="safeguarding-opinion"
+                        value="no"
+                        checked={reportData.finalComments.safeguardingOpinion === "no"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-no" className="text-sm font-medium">
+                        No
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="safeguarding-not-sure"
+                        name="safeguarding-opinion"
+                        value="not-sure"
+                        checked={reportData.finalComments.safeguardingOpinion === "not-sure"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="safeguarding-not-sure" className="text-sm font-medium">
+                        Not sure
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+                
+                {(reportData.finalComments.safeguardingOpinion === "no" || reportData.finalComments.safeguardingOpinion === "not-sure") && (
+                  <div>
+                    <Label htmlFor="safeguarding-explanation" className="text-sm font-medium">
+                      Brief explanation (required) *
+                    </Label>
+                    <Textarea
+                      id="safeguarding-explanation"
+                      value={reportData.finalComments.safeguardingExplanation}
+                      onChange={(e) =>
+                        setReportData((prev) => ({
+                          ...prev,
+                          finalComments: {
+                            ...prev.finalComments,
+                            safeguardingExplanation: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Please explain your concerns or uncertainties about safeguarding..."
+                      className="mt-2 min-h-[80px]"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Wellbeing Opinion */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">
+                    Does the home promote children's wellbeing? *
+                  </Label>
+                  <div className="flex items-center space-x-6 mt-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-yes"
+                        name="wellbeing-opinion"
+                        value="yes"
+                        checked={reportData.finalComments.wellbeingOpinion === "yes"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-yes" className="text-sm font-medium">
+                        Yes
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-no"
+                        name="wellbeing-opinion"
+                        value="no"
+                        checked={reportData.finalComments.wellbeingOpinion === "no"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-no" className="text-sm font-medium">
+                        No
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="wellbeing-not-sure"
+                        name="wellbeing-opinion"
+                        value="not-sure"
+                        checked={reportData.finalComments.wellbeingOpinion === "not-sure"}
+                        onChange={(e) =>
+                          setReportData((prev) => ({
+                            ...prev,
+                            finalComments: {
+                              ...prev.finalComments,
+                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label htmlFor="wellbeing-not-sure" className="text-sm font-medium">
+                        Not sure
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+                
+                {(reportData.finalComments.wellbeingOpinion === "no" || reportData.finalComments.wellbeingOpinion === "not-sure") && (
+                  <div>
+                    <Label htmlFor="wellbeing-explanation" className="text-sm font-medium">
+                      Brief explanation (required) *
+                    </Label>
+                    <Textarea
+                      id="wellbeing-explanation"
+                      value={reportData.finalComments.wellbeingExplanation}
+                      onChange={(e) =>
+                        setReportData((prev) => ({
+                          ...prev,
+                          finalComments: {
+                            ...prev.finalComments,
+                            wellbeingExplanation: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Please explain your concerns or uncertainties about wellbeing promotion..."
+                      className="mt-2 min-h-[80px]"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Information Note */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Regulation 44.4 Compliance</p>
+                    <p>
+                      These responses fulfill the legal requirements for Independent Person reports under Regulation 44.4. 
+                      The data will be mapped to the following PDF fields:
+                    </p>
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                      <li><strong>IP_SafeguardingOpinion:</strong> Safeguarding response</li>
+                      <li><strong>IP_SafeguardingExplanation:</strong> Safeguarding explanation (if applicable)</li>
+                      <li><strong>IP_WellbeingOpinion:</strong> Wellbeing response</li>
+                      <li><strong>IP_WellbeingExplanation:</strong> Wellbeing explanation (if applicable)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Report Review and Download Section */}
           <Card
             className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
@@ -4396,253 +4465,6 @@ Kind regards,
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-
-
-          {/* Independent Person's Final Comments Section */}
-          <Card
-            className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
-          >
-            {!isFormUnlocked && (
-              <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
-                <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select a setting type above to unlock this section
-                </div>
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CheckCircle className="h-5 w-5 mr-2" />
-                Independent Person's Final Comments
-              </CardTitle>
-              <CardDescription>
-                Complete the legally required elements for Regulation 44.4. These responses will be included in the structured PDF export.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Safeguarding Opinion */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-medium">
-                    Are children effectively safeguarded? *
-                  </Label>
-                  <div className="flex items-center space-x-6 mt-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="safeguarding-yes"
-                        name="safeguarding-opinion"
-                        value="yes"
-                        checked={reportData.finalComments.safeguardingOpinion === "yes"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="safeguarding-yes" className="text-sm font-medium">
-                        Yes
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="safeguarding-no"
-                        name="safeguarding-opinion"
-                        value="no"
-                        checked={reportData.finalComments.safeguardingOpinion === "no"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="safeguarding-no" className="text-sm font-medium">
-                        No
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="safeguarding-not-sure"
-                        name="safeguarding-opinion"
-                        value="not-sure"
-                        checked={reportData.finalComments.safeguardingOpinion === "not-sure"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              safeguardingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="safeguarding-not-sure" className="text-sm font-medium">
-                        Not sure
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-                
-                {(reportData.finalComments.safeguardingOpinion === "no" || reportData.finalComments.safeguardingOpinion === "not-sure") && (
-                  <div>
-                    <Label htmlFor="safeguarding-explanation" className="text-sm font-medium">
-                      Brief explanation (required) *
-                    </Label>
-                    <Textarea
-                      id="safeguarding-explanation"
-                      value={reportData.finalComments.safeguardingExplanation}
-                      onChange={(e) =>
-                        setReportData((prev) => ({
-                          ...prev,
-                          finalComments: {
-                            ...prev.finalComments,
-                            safeguardingExplanation: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="Please explain your concerns or uncertainties about safeguarding..."
-                      className="mt-2 min-h-[80px]"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Wellbeing Opinion */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-medium">
-                    Does the home promote children's wellbeing? *
-                  </Label>
-                  <div className="flex items-center space-x-6 mt-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="wellbeing-yes"
-                        name="wellbeing-opinion"
-                        value="yes"
-                        checked={reportData.finalComments.wellbeingOpinion === "yes"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="wellbeing-yes" className="text-sm font-medium">
-                        Yes
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="wellbeing-no"
-                        name="wellbeing-opinion"
-                        value="no"
-                        checked={reportData.finalComments.wellbeingOpinion === "no"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="wellbeing-no" className="text-sm font-medium">
-                        No
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="wellbeing-not-sure"
-                        name="wellbeing-opinion"
-                        value="not-sure"
-                        checked={reportData.finalComments.wellbeingOpinion === "not-sure"}
-                        onChange={(e) =>
-                          setReportData((prev) => ({
-                            ...prev,
-                            finalComments: {
-                              ...prev.finalComments,
-                              wellbeingOpinion: e.target.value as "yes" | "no" | "not-sure",
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="wellbeing-not-sure" className="text-sm font-medium">
-                        Not sure
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-                
-                {(reportData.finalComments.wellbeingOpinion === "no" || reportData.finalComments.wellbeingOpinion === "not-sure") && (
-                  <div>
-                    <Label htmlFor="wellbeing-explanation" className="text-sm font-medium">
-                      Brief explanation (required) *
-                    </Label>
-                    <Textarea
-                      id="wellbeing-explanation"
-                      value={reportData.finalComments.wellbeingExplanation}
-                      onChange={(e) =>
-                        setReportData((prev) => ({
-                          ...prev,
-                          finalComments: {
-                            ...prev.finalComments,
-                            wellbeingExplanation: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="Please explain your concerns or uncertainties about wellbeing promotion..."
-                      className="mt-2 min-h-[80px]"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Information Note */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Regulation 44.4 Compliance</p>
-                    <p>
-                      These responses fulfill the legal requirements for Independent Person reports under Regulation 44.4. 
-                      The data will be mapped to the following PDF fields:
-                    </p>
-                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
-                      <li><strong>IP_SafeguardingOpinion:</strong> Safeguarding response</li>
-                      <li><strong>IP_SafeguardingExplanation:</strong> Safeguarding explanation (if applicable)</li>
-                      <li><strong>IP_WellbeingOpinion:</strong> Wellbeing response</li>
-                      <li><strong>IP_WellbeingExplanation:</strong> Wellbeing explanation (if applicable)</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
