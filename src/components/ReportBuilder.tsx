@@ -91,6 +91,7 @@ interface Action {
   status: "not-started" | "in-progress" | "completed";
   createdDate: string;
   homeId: string;
+  progressUpdate?: string;
 }
 
 interface ChildFeedback {
@@ -120,6 +121,18 @@ interface DocumentChecklistItem {
   notes: string;
 }
 
+interface FinalComments {
+  safeguardingOpinion: "yes" | "no" | "not-sure" | "";
+  safeguardingExplanation: string;
+  wellbeingOpinion: "yes" | "no" | "not-sure" | "";
+  wellbeingExplanation: string;
+  recommendations: Array<{
+    id: string;
+    text: string;
+    priority: "high" | "medium" | "low" | "";
+  }>;
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
@@ -138,6 +151,7 @@ interface ReportData {
   safeguardingComment: string;
   wellbeingOpinion: boolean | null;
   wellbeingComment: string;
+  finalComments: FinalComments;
 }
 
 interface ReportVersion {
@@ -159,7 +173,6 @@ const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "staff", title: "Staff & Management Discussion" },
   { id: "records", title: "Records Reviewed" },
   { id: "compliance", title: "Compliance & Concerns" },
-  { id: "recommendations", title: "Recommendations & Actions" },
 ];
 
 const UNREGISTERED_PROVISION_SECTIONS = [
@@ -172,7 +185,6 @@ const UNREGISTERED_PROVISION_SECTIONS = [
   { id: "records_documentation", title: "Records & Documentation" },
   { id: "leadership_oversight", title: "Leadership & Oversight" },
   { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
-  { id: "recommendations", title: "Recommendations & Actions" },
 ];
 
 const STAFF_ROLES = [
@@ -302,6 +314,13 @@ const ReportBuilder = () => {
     safeguardingComment: "",
     wellbeingOpinion: null,
     wellbeingComment: "",
+    finalComments: {
+      safeguardingOpinion: "",
+      safeguardingExplanation: "",
+      wellbeingOpinion: "",
+      wellbeingExplanation: "",
+      recommendations: [],
+    },
   });
 
   // State for form validation and unlocking
@@ -406,6 +425,16 @@ const ReportBuilder = () => {
         }
         if (!parsedData.reportData.wellbeingComment) {
           parsedData.reportData.wellbeingComment = "";
+        }
+        // Ensure finalComments exists for backward compatibility
+        if (!parsedData.reportData.finalComments) {
+          parsedData.reportData.finalComments = {
+            safeguardingOpinion: "",
+            safeguardingExplanation: "",
+            wellbeingOpinion: "",
+            wellbeingExplanation: "",
+            recommendations: [],
+          };
         }
         setReportData(parsedData.reportData);
         setAiGeneratedContent(parsedData.aiGeneratedContent || "");
@@ -4306,6 +4335,8 @@ Kind regards,
               )}
             </CardContent>
           </Card>
+
+
 
           {/* Sticky Action Bar */}
           <div className="sticky bottom-0 bg-white border-t p-4 -mx-6">
