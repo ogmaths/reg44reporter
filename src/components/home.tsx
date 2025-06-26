@@ -48,9 +48,10 @@ interface Home {
   capacity: number;
   lastVisit?: string;
   nextVisit?: string;
-  status: "active" | "pending" | "inactive";
+  status: "active" | "inactive";
   reportsCount: number;
   lastReportDate?: string;
+  lastFormType?: "quick" | "full";
 }
 
 const mockHomes: Home[] = [
@@ -66,6 +67,7 @@ const mockHomes: Home[] = [
     status: "active",
     reportsCount: 12,
     lastReportDate: "2024-01-15",
+    lastFormType: "quick",
   },
   {
     id: "2",
@@ -78,6 +80,7 @@ const mockHomes: Home[] = [
     status: "active",
     reportsCount: 8,
     lastReportDate: "2023-12-20",
+    lastFormType: "full",
   },
   {
     id: "3",
@@ -86,9 +89,10 @@ const mockHomes: Home[] = [
     region: "South East",
     address: "789 Pine Road, Brighton",
     capacity: 6,
-    status: "pending",
+    status: "active",
     reportsCount: 3,
     lastReportDate: "2023-11-10",
+    lastFormType: "quick",
   },
 ];
 
@@ -143,8 +147,6 @@ const HomeDashboard = () => {
     switch (status) {
       case "active":
         return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
       case "inactive":
         return "bg-gray-100 text-gray-800";
       default:
@@ -203,7 +205,7 @@ const HomeDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Homes</CardTitle>
@@ -211,19 +213,6 @@ const HomeDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{homes.length}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Homes
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {homes.filter((h) => h.status === "active").length}
-              </div>
             </CardContent>
           </Card>
           <Card className="bg-white">
@@ -408,12 +397,16 @@ const HomeDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(home.status)}>
-                            {home.status}
-                          </Badge>
                           {visitStatus && (
                             <Badge variant={visitStatus.color as any}>
                               Visit {visitStatus.text}
+                            </Badge>
+                          )}
+                          {home.lastFormType && (
+                            <Badge variant="outline" className="text-xs">
+                              {home.lastFormType === "quick"
+                                ? "Quick Form Used"
+                                : "Full Form Used"}
                             </Badge>
                           )}
                         </div>

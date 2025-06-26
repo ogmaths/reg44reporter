@@ -64,6 +64,7 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
+  Mail,
 } from "lucide-react";
 import {
   Table,
@@ -125,6 +126,7 @@ interface ReportData {
   visitDate: string;
   visitType: "announced" | "unannounced" | "";
   settingType: "registered_childrens_home" | "unregistered_provision" | "";
+  formType: "quick" | "full" | "";
   sections: ReportSection[];
   actions: Action[];
   recommendationsSummary: string;
@@ -132,6 +134,10 @@ interface ReportData {
   childrenFeedback: ChildFeedback[];
   staffFeedback: StaffFeedback[];
   documentChecklist: DocumentChecklistItem[];
+  safeguardingOpinion: boolean | null;
+  safeguardingComment: string;
+  wellbeingOpinion: boolean | null;
+  wellbeingComment: string;
 }
 
 interface ReportVersion {
@@ -143,6 +149,8 @@ interface ReportVersion {
 }
 
 type ViewMode = "create" | "review";
+type FormType = "quick" | "full";
+type FormStep = "selection" | "form";
 
 const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "summary", title: "Summary of Visit" },
@@ -209,17 +217,28 @@ const REGISTERED_HOME_DOCUMENTS = [
 ];
 
 const UNREGISTERED_SETTING_DOCUMENTS = [
+  // Child-Focused
   "Care Plan",
-  "Placement Agreement",
-  "Key Work Notes",
-  "Daily Logs",
-  "Incident Records",
-  "Staff Rota",
-  "Training Evidence",
-  "DBS Proof",
-  "Draft Statement of Purpose",
-  "Registration Intent Evidence",
-  "LA Agreement or Referral Info",
+  "Risk Assessments",
+  "Placement Agreement (from Local Authority)",
+  "Health / Education Overview (if not formal plans)",
+  "Evidence of Key Work / Daily Support Notes",
+  // Daily Practice
+  "Daily Logs / Case Notes",
+  "Incident Reports",
+  "Complaints / Concerns Record",
+  "Informal Sanctions / Behaviour Notes",
+  // Staffing & Records
+  "Rota (especially night cover)",
+  "Staff Details & Roles",
+  "Evidence of Basic Training (Safeguarding, First Aid)",
+  "DBS Confirmation Letters or Screenshots",
+  // Organisational Oversight
+  "Statement of Purpose (Draft or Working Version)",
+  "Fire Safety Risk Assessment",
+  "Evidence of Registration Intent (Ofsted application, payment, draft policies)",
+  "Contract / Agreement with LA",
+  "Any Internal QA Audits / Self-Assessments",
 ];
 
 const ReportBuilder = () => {
@@ -231,8 +250,11 @@ const ReportBuilder = () => {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiGeneratedContent, setAiGeneratedContent] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("create");
+  const [formStep, setFormStep] = useState<FormStep>("selection");
   const [isReportSubmitted, setIsReportSubmitted] = useState(false);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [showFormSwitchDialog, setShowFormSwitchDialog] = useState(false);
+  const [pendingFormType, setPendingFormType] = useState<FormType | null>(null);
   const [newAction, setNewAction] = useState({
     description: "",
     responsiblePerson: "",
@@ -243,6 +265,10 @@ const ReportBuilder = () => {
   const [generateChildFriendly, setGenerateChildFriendly] = useState(false);
   const [childFriendlySummary, setChildFriendlySummary] = useState("");
   const [isGeneratingChildFriendly, setIsGeneratingChildFriendly] =
+    useState(false);
+  const [isGeneratingAIPolished, setIsGeneratingAIPolished] = useState(false);
+  const [aiPolishedContent, setAiPolishedContent] = useState("");
+  const [showChildFriendlyPreview, setShowChildFriendlyPreview] =
     useState(false);
 
   // Offline functionality state
@@ -258,6 +284,7 @@ const ReportBuilder = () => {
     visitDate: new Date().toISOString().split("T")[0],
     visitType: "",
     settingType: "",
+    formType: "",
     sections: REGISTERED_CHILDRENS_HOME_SECTIONS.map((section) => ({
       id: section.id,
       title: section.title,
@@ -271,7 +298,24 @@ const ReportBuilder = () => {
     childrenFeedback: [],
     staffFeedback: [],
     documentChecklist: [],
+    safeguardingOpinion: null,
+    safeguardingComment: "",
+    wellbeingOpinion: null,
+    wellbeingComment: "",
   });
+
+  // State for form validation and unlocking
+  const [settingTypeError, setSettingTypeError] = useState("");
+  const [showSettingTypeError, setShowSettingTypeError] = useState(false);
+  const [formTypeError, setFormTypeError] = useState("");
+  const [showFormTypeError, setShowFormTypeError] = useState(false);
+  const isFormUnlocked = reportData.settingType !== "" && reportData.formType !== "";
+  const isFormSelectionComplete = reportData.formType !== "";
+
+  // State for follow-up message generator
+  const [followUpMessage, setFollowUpMessage] = useState("");
+  const [showFollowUpMessage, setShowFollowUpMessage] = useState(false);
+  const [newDocumentName, setNewDocumentName] = useState("");
 
   // Offline functionality - Connection status detection
   useEffect(() => {
@@ -347,11 +391,32 @@ const ReportBuilder = () => {
         if (!parsedData.reportData.documentChecklist) {
           parsedData.reportData.documentChecklist = [];
         }
+        if (!parsedData.reportData.formType) {
+          parsedData.reportData.formType = "quick"; // Default to quick form for backward compatibility
+        }
+        // Ensure quick form fields exist for backward compatibility
+        if (parsedData.reportData.safeguardingOpinion === undefined) {
+          parsedData.reportData.safeguardingOpinion = null;
+        }
+        if (!parsedData.reportData.safeguardingComment) {
+          parsedData.reportData.safeguardingComment = "";
+        }
+        if (parsedData.reportData.wellbeingOpinion === undefined) {
+          parsedData.reportData.wellbeingOpinion = null;
+        }
+        if (!parsedData.reportData.wellbeingComment) {
+          parsedData.reportData.wellbeingComment = "";
+        }
         setReportData(parsedData.reportData);
         setAiGeneratedContent(parsedData.aiGeneratedContent || "");
         setChildFriendlySummary(parsedData.childFriendlySummary || "");
         setHasOfflineChanges(true);
         setLastSaved(new Date(parsedData.lastSaved));
+        
+        // Set form step based on whether form type is selected
+        if (parsedData.reportData.formType) {
+          setFormStep("form");
+        }
 
         toast({
           title: "📄 Offline Draft Loaded",
@@ -420,6 +485,35 @@ const ReportBuilder = () => {
   }, [reportData, isOnline, saveToLocalStorage]);
 
   const handleSaveDraft = (isAutoSave = false) => {
+    // Prevent auto-save if form type or setting type is not selected
+    if ((!reportData.formType || !reportData.settingType) && isAutoSave) {
+      return;
+    }
+
+    // Show error if trying to manually save without form type
+    if (!reportData.formType && !isAutoSave) {
+      setShowFormTypeError(true);
+      setFormTypeError("Please select a form type before saving.");
+      return;
+    }
+
+    // Show error if trying to manually save without setting type
+    if (!reportData.settingType && !isAutoSave) {
+      setShowSettingTypeError(true);
+      setSettingTypeError("Please select a setting type before saving.");
+      // Scroll to setting type field
+      const settingTypeElement = document.querySelector(
+        "[data-setting-type-select]",
+      );
+      if (settingTypeElement) {
+        settingTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
     if (isOnline) {
       // In a real app, this would save to a backend
       localStorage.setItem("reportDraft", JSON.stringify(reportData));
@@ -631,7 +725,11 @@ const ReportBuilder = () => {
           : "No specific actions identified during this visit.";
 
       // Build the comprehensive AI summary
-      let aiSummary = `# Regulation 44 Visit Report\n\n`;
+      const reportTitle =
+        reportData.settingType === "unregistered_provision"
+          ? "Regulation 44-Style Assurance Review Report"
+          : "Regulation 44 Visit Report";
+      let aiSummary = `# ${reportTitle}\n\n`;
 
       // Header Information
       aiSummary += `**Home:** ${reportData.homeName}\n`;
@@ -717,6 +815,137 @@ const ReportBuilder = () => {
     }, 2000);
   };
 
+  const generateAIPolishedReport = async () => {
+    setIsGeneratingAIPolished(true);
+
+    // Simulate AI generation for polished report
+    setTimeout(() => {
+      // Collect content from all report sections
+      const reportSections = reportData.sections
+        .filter((section) => section.content.trim())
+        .map((section) => ({ title: section.title, content: section.content }));
+
+      // Include children's feedback
+      const childrenFeedbackContent = reportData.childrenFeedback
+        .filter((feedback) => feedback.summary.trim())
+        .map((feedback) => ({
+          title: `${terminology.capitalSingular} Feedback (${feedback.initialsOrCode})`,
+          content: `Summary: ${feedback.summary}${feedback.concernsRaised ? "\n⚠️ Concerns were raised during this conversation." : ""}${feedback.actionTaken ? `\nAction taken: ${feedback.actionTaken}` : ""}`,
+        }));
+
+      // Include staff feedback
+      const staffFeedbackContent = reportData.staffFeedback
+        .filter(
+          (feedback) =>
+            feedback.questionsAsked.trim() || feedback.keyPointsRaised.trim(),
+        )
+        .map((feedback) => ({
+          title: `Staff Interview - ${feedback.initialsOrCode} (${feedback.role})`,
+          content: `${feedback.questionsAsked ? `Questions asked: ${feedback.questionsAsked}\n` : ""}${feedback.keyPointsRaised ? `Key points raised: ${feedback.keyPointsRaised}` : ""}${feedback.concernsRaised ? "\n⚠️ Concerns were raised during this interview." : ""}`,
+        }));
+
+      const allSections = [
+        ...reportSections,
+        ...childrenFeedbackContent,
+        ...staffFeedbackContent,
+      ];
+
+      // Build the AI-polished report
+      const reportTitle =
+        reportData.settingType === "unregistered_provision"
+          ? "Regulation 44-Style Assurance Review Report"
+          : "Regulation 44 Visit Report";
+      let polishedReport = `# ${reportTitle}\n\n`;
+
+      // Header Information
+      polishedReport += `**Home:** ${reportData.homeName}\n`;
+      polishedReport += `**Address:** ${reportData.homeAddress}\n`;
+      polishedReport += `**Date of Visit:** ${new Date(reportData.visitDate).toLocaleDateString()}\n`;
+      polishedReport += `**Type of Visit:** ${reportData.visitType ? reportData.visitType.charAt(0).toUpperCase() + reportData.visitType.slice(1) : "Not specified"}\n`;
+      polishedReport += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "unregistered_provision" ? "Regulation 44-Style Assurance Review – Unregistered Provision" : "Not specified"}\n\n`;
+
+      // Executive Summary
+      polishedReport += `## Executive Summary\n\n`;
+      if (reportData.settingType === "unregistered_provision") {
+        polishedReport += `This comprehensive assurance review was conducted at ${reportData.homeName} to evaluate the provision's compliance with regulatory standards and readiness for Ofsted registration. The ${reportData.visitType || "scheduled"} review assessed key areas including safeguarding practices, environmental standards, staffing arrangements, and the quality of care provided to young people.\n\n`;
+      } else {
+        polishedReport += `This Regulation 44 visit was conducted at ${reportData.homeName} to assess compliance with regulatory requirements and evaluate the quality of care provided to children and young people. The ${reportData.visitType || "scheduled"} visit examined key areas of practice and identified opportunities for continued improvement.\n\n`;
+      }
+
+      // Polished Findings by Section
+      if (allSections.length > 0) {
+        polishedReport += `## Key Findings and Observations\n\n`;
+        allSections.forEach((section) => {
+          polishedReport += `### ${section.title}\n\n`;
+          // AI-enhanced version of the content (simulated improvement)
+          let enhancedContent = section.content
+            .replace(/\b(good|ok|fine)\b/gi, "satisfactory")
+            .replace(/\b(bad|poor|not good)\b/gi, "requires improvement")
+            .replace(/\b(very good|excellent|great)\b/gi, "exemplary")
+            .replace(
+              /\b(I saw|I noticed|I observed)\b/gi,
+              "During the visit, it was observed that",
+            )
+            .replace(
+              /\b(The staff said|Staff told me)\b/gi,
+              "Staff members reported that",
+            )
+            .replace(/\b(Kids|Children)\b/gi, terminology.plural)
+            .replace(/\b(Kid|Child)\b/gi, terminology.singular);
+
+          // Add professional structure
+          if (enhancedContent.length > 100) {
+            enhancedContent = `The assessment of this area revealed the following key points:\n\n${enhancedContent}\n\nOverall, this aspect of the provision demonstrates ${Math.random() > 0.5 ? "strong practice with opportunities for continued development" : "areas of strength alongside specific recommendations for enhancement"}.`;
+          }
+
+          polishedReport += `${enhancedContent}\n\n`;
+        });
+      }
+
+      // Recommendations Summary
+      if (reportData.recommendationsSummary.trim()) {
+        polishedReport += `## Summary of Recommendations\n\n`;
+        let enhancedRecommendations = reportData.recommendationsSummary
+          .replace(
+            /\b(should|need to|must)\b/gi,
+            "it is recommended that the provision",
+          )
+          .replace(/\b(fix|sort out)\b/gi, "address")
+          .replace(/\b(make sure|ensure)\b/gi, "ensure that");
+        polishedReport += `${enhancedRecommendations}\n\n`;
+      }
+
+      // Actions and Recommendations
+      if (reportData.actions.length > 0) {
+        polishedReport += `## Specific Actions and Recommendations\n\n`;
+        polishedReport += `The following actions have been identified to support continued improvement and regulatory compliance:\n\n`;
+        reportData.actions.forEach((action, index) => {
+          polishedReport += `**${index + 1}.** ${action.description}\n`;
+          polishedReport += `   - **Responsible Person:** ${action.responsiblePerson}\n`;
+          polishedReport += `   - **Target Completion:** ${new Date(action.deadline).toLocaleDateString()}\n`;
+          polishedReport += `   - **Current Status:** ${action.status.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}\n\n`;
+        });
+      }
+
+      // Overall Assessment
+      polishedReport += `## Overall Assessment and Conclusion\n\n`;
+      if (reportData.settingType === "unregistered_provision") {
+        polishedReport += `This assurance review demonstrates the provision's commitment to achieving regulatory compliance and providing quality care for young people. The recommendations outlined above will support the setting in its preparation for Ofsted registration and ongoing development of best practice.\n\n`;
+      } else {
+        polishedReport += `This visit confirms the home's dedication to providing quality care and maintaining regulatory standards. The recommendations identified will support continued improvement and ensure the best possible outcomes for children and young people.\n\n`;
+      }
+
+      polishedReport += `The next review will monitor progress against these recommendations and assess ongoing compliance with regulatory requirements.\n\n`;
+
+      // Footer
+      polishedReport += `---\n\n`;
+      polishedReport += `*This report has been professionally enhanced using AI assistance to improve clarity and structure while maintaining the accuracy of all observations and findings.*`;
+
+      setAiPolishedContent(polishedReport);
+      setIsGeneratingAIPolished(false);
+    }, 3000);
+  };
+
   const generateChildFriendlySummary = async () => {
     setIsGeneratingChildFriendly(true);
 
@@ -730,9 +959,17 @@ const ReportBuilder = () => {
         (s) => s.id === "environment",
       );
 
-      let childFriendlyText = `# What We Found During Our Visit to ${reportData.homeName}\n\n`;
+      const childFriendlyTitle =
+        reportData.settingType === "unregistered_provision"
+          ? `What We Found During Our Assurance Review at ${reportData.homeName}`
+          : `What We Found During Our Visit to ${reportData.homeName}`;
+      let childFriendlyText = `# ${childFriendlyTitle}\n\n`;
 
-      childFriendlyText += `Hi everyone! We visited your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to make sure you're getting the best care possible.\n\n`;
+      const visitDescription =
+        reportData.settingType === "unregistered_provision"
+          ? `Hi everyone! We conducted an assurance review at your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to help prepare for official registration.`
+          : `Hi everyone! We visited your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to make sure you're getting the best care possible.`;
+      childFriendlyText += `${visitDescription}\n\n`;
 
       // Add positive findings
       childFriendlyText += `## The Good Things We Noticed\n\n`;
@@ -785,6 +1022,34 @@ const ReportBuilder = () => {
   };
 
   const handleSubmitFinalReport = async () => {
+    // Prevent submission if form type is not selected
+    if (!reportData.formType) {
+      setShowFormTypeError(true);
+      setFormTypeError(
+        "Please select a form type before submitting the report.",
+      );
+      return;
+    }
+
+    // Prevent submission if setting type is not selected
+    if (!reportData.settingType) {
+      setShowSettingTypeError(true);
+      setSettingTypeError(
+        "Please select a setting type before submitting the report.",
+      );
+      // Scroll to setting type field
+      const settingTypeElement = document.querySelector(
+        "[data-setting-type-select]",
+      );
+      if (settingTypeElement) {
+        settingTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
     // Generate child-friendly summary if requested
     if (generateChildFriendly && !childFriendlySummary) {
       await generateChildFriendlySummary();
@@ -989,6 +1254,22 @@ const ReportBuilder = () => {
       sections: updatedSections,
       documentChecklist: newDocumentChecklist,
     }));
+
+    // Clear any setting type errors
+    setShowSettingTypeError(false);
+    setSettingTypeError("");
+    
+    // Clear any form type errors
+    setShowFormTypeError(false);
+    setFormTypeError("");
+
+    // Auto-scroll to the next section after selection
+    setTimeout(() => {
+      const nextSection = document.querySelector("[data-next-section]");
+      if (nextSection) {
+        nextSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 300);
   };
 
   const handleDocumentChecklistUpdate = (
@@ -1002,6 +1283,99 @@ const ReportBuilder = () => {
         item.id === itemId ? { ...item, [field]: value } : item,
       ),
     }));
+  };
+
+  const handleAddCustomDocument = () => {
+    if (!newDocumentName.trim()) {
+      toast({
+        title: "Document Name Required",
+        description: "Please enter a document name before adding.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newDocument: DocumentChecklistItem = {
+      id: `custom-${Date.now()}`,
+      name: newDocumentName.trim(),
+      checked: false,
+      notes: "",
+    };
+
+    setReportData((prev) => ({
+      ...prev,
+      documentChecklist: [...prev.documentChecklist, newDocument],
+    }));
+
+    setNewDocumentName("");
+    toast({
+      title: "Document Added",
+      description: `"${newDocumentName.trim()}" has been added to the checklist.`,
+      duration: 2000,
+    });
+  };
+
+  const handleRemoveCustomDocument = (itemId: string) => {
+    setReportData((prev) => ({
+      ...prev,
+      documentChecklist: prev.documentChecklist.filter(
+        (item) => item.id !== itemId,
+      ),
+    }));
+  };
+
+  const generateFollowUpMessage = () => {
+    const uncheckedDocuments = reportData.documentChecklist.filter(
+      (item) => !item.checked,
+    );
+
+    if (uncheckedDocuments.length === 0) {
+      toast({
+        title: "No Missing Documents",
+        description:
+          "All documents have been reviewed. No follow-up message needed.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Calculate suggested date (7 days from visit date)
+    const visitDate = new Date(reportData.visitDate);
+    const suggestedDate = new Date(visitDate);
+    suggestedDate.setDate(visitDate.getDate() + 7);
+
+    const documentList = uncheckedDocuments
+      .map((doc) => `• ${doc.name}`)
+      .join("\n");
+
+    const message = `Subject: Follow-up from Regulation 44 Visit – Request for Documents
+
+Dear [Manager's Name],
+
+Thank you again for your time during my visit to ${reportData.homeName} on ${new Date(reportData.visitDate).toLocaleDateString()}.
+
+As part of my post-visit process, I am following up to request the following documents that were not available on the day of my visit:
+
+${documentList}
+
+If these could be shared by ${suggestedDate.toLocaleDateString()}, that would be appreciated.
+
+Please do not hesitate to contact me if anything needs clarification.
+
+Kind regards,
+[IP Name]`;
+
+    setFollowUpMessage(message);
+    setShowFollowUpMessage(true);
+  };
+
+  const copyFollowUpMessage = () => {
+    navigator.clipboard.writeText(followUpMessage);
+    toast({
+      title: "Message Copied",
+      description: "Follow-up message has been copied to clipboard.",
+      duration: 2000,
+    });
   };
 
   const generateSecureLink = () => {
@@ -1019,6 +1393,78 @@ const ReportBuilder = () => {
     }
     generateSecureLink();
     setShareDialogOpen(false);
+  };
+
+  const handleDownloadAIPolishedPDF = () => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const lineHeight = 6;
+    let yPosition = margin;
+    let pageNumber = 1;
+
+    // Helper function to add page numbers and footer
+    const addFooter = () => {
+      const now = new Date();
+      const timestamp = `AI-Enhanced report generated on ${now.toLocaleDateString("en-GB")} at ${now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(timestamp, margin, pageHeight - 15);
+      pdf.text(`Page ${pageNumber}`, pageWidth - margin - 20, pageHeight - 15);
+    };
+
+    // Helper function to check if we need a new page
+    const checkNewPage = (requiredSpace = 20) => {
+      if (yPosition + requiredSpace > pageHeight - 30) {
+        addFooter();
+        pdf.addPage();
+        pageNumber++;
+        yPosition = margin;
+      }
+    };
+
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text: string, fontSize = 10, isBold = false) => {
+      pdf.setFontSize(fontSize);
+      pdf.setFont("helvetica", isBold ? "bold" : "normal");
+      pdf.setTextColor(0, 0, 0);
+
+      const maxWidth = pageWidth - 2 * margin;
+      const lines = pdf.splitTextToSize(text, maxWidth);
+
+      for (const line of lines) {
+        checkNewPage();
+        pdf.text(line, margin, yPosition);
+        yPosition += lineHeight;
+      }
+    };
+
+    // Header Section
+    pdf.setFontSize(18);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(0, 0, 0);
+    const reportTitle =
+      reportData.settingType === "unregistered_provision"
+        ? "AI-Enhanced Regulation 44-Style Assurance Review Report"
+        : "AI-Enhanced Regulation 44 Visit Report";
+    pdf.text(reportTitle, margin, yPosition);
+    yPosition += 15;
+
+    // Add the AI-polished content
+    const content = aiPolishedContent
+      .replace(/^# /, "")
+      .replace(/\n## /g, "\n\n")
+      .replace(/\n\n/g, "\n");
+    addWrappedText(content, 11);
+
+    // Add footer to last page
+    addFooter();
+
+    // Download the PDF
+    const fileName = `AI_Enhanced_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
+    pdf.save(fileName);
   };
 
   const handleDownloadChildFriendlyPDF = () => {
@@ -1071,7 +1517,11 @@ const ReportBuilder = () => {
     pdf.setFontSize(18);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
-    pdf.text("Child-Friendly Visit Summary", margin, yPosition);
+    const childFriendlyTitle =
+      reportData.settingType === "unregistered_provision"
+        ? "What We Found During Our Assurance Review"
+        : "Child-Friendly Visit Summary";
+    pdf.text(childFriendlyTitle, margin, yPosition);
     yPosition += 15;
 
     // Add the child-friendly content
@@ -1139,7 +1589,11 @@ const ReportBuilder = () => {
     pdf.setFontSize(18);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
-    pdf.text("Regulation 44 Visit Report", margin, yPosition);
+    const reportTitle =
+      reportData.settingType === "unregistered_provision"
+        ? "Regulation 44-Style Assurance Review Report"
+        : "Regulation 44 Visit Report";
+    pdf.text(reportTitle, margin, yPosition);
     yPosition += 15;
 
     // Home Information
@@ -1376,6 +1830,190 @@ const ReportBuilder = () => {
     return newVersion;
   };
 
+  // Handle form type selection
+  const handleFormTypeSelection = (formType: FormType) => {
+    setReportData((prev) => ({
+      ...prev,
+      formType,
+    }));
+    setFormStep("form");
+    setShowFormTypeError(false);
+    setFormTypeError("");
+  };
+
+  // Handle form type switching
+  const handleFormTypeSwitch = (newFormType: FormType) => {
+    if (newFormType === reportData.formType) return;
+    
+    setPendingFormType(newFormType);
+    setShowFormSwitchDialog(true);
+  };
+
+  // Confirm form type switch
+  const confirmFormTypeSwitch = () => {
+    if (pendingFormType) {
+      setReportData((prev) => ({
+        ...prev,
+        formType: pendingFormType,
+      }));
+      
+      toast({
+        title: "Form Type Changed",
+        description: `Switched to ${pendingFormType === "quick" ? "Quick Form" : "Full Form"}. Your progress has been preserved.`,
+        duration: 3000,
+      });
+    }
+    
+    setShowFormSwitchDialog(false);
+    setPendingFormType(null);
+  };
+
+  // Cancel form type switch
+  const cancelFormTypeSwitch = () => {
+    setShowFormSwitchDialog(false);
+    setPendingFormType(null);
+  };
+
+  // Get form type display name
+  const getFormTypeDisplayName = (formType: string) => {
+    return formType === "quick" ? "Quick Form" : "Full Form";
+  };
+
+  // Render form type selection screen
+  const renderFormTypeSelection = () => (
+    <div className="max-w-2xl mx-auto px-6 py-12">
+      <Card className="bg-white">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl mb-2">
+            Choose Your Report Format
+          </CardTitle>
+          <CardDescription className="text-base">
+            How would you like to complete this visit report?
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            {/* Quick Form Option */}
+            <div 
+              className={`border-2 rounded-lg p-6 cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50 ${
+                reportData.formType === "quick" ? "border-blue-500 bg-blue-50" : "border-gray-200"
+              }`}
+              onClick={() => handleFormTypeSelection("quick")}
+            >
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 mt-1">
+                  <div className={`w-4 h-4 rounded-full border-2 ${
+                    reportData.formType === "quick" 
+                      ? "border-blue-500 bg-blue-500" 
+                      : "border-gray-300"
+                  }`}>
+                    {reportData.formType === "quick" && (
+                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Quick Form (Current format)
+                  </h3>
+                  <p className="text-gray-600 mb-3">
+                    Fast overview with open notes – ideal for routine visits or well-known homes.
+                  </p>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Badge variant="secondary">Recommended</Badge>
+                    <span>•</span>
+                    <span>Faster completion</span>
+                    <span>•</span>
+                    <span>Open-ended sections</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Full Form Option */}
+            <div 
+              className={`border-2 rounded-lg p-6 cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50 ${
+                reportData.formType === "full" ? "border-blue-500 bg-blue-50" : "border-gray-200"
+              }`}
+              onClick={() => handleFormTypeSelection("full")}
+            >
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 mt-1">
+                  <div className={`w-4 h-4 rounded-full border-2 ${
+                    reportData.formType === "full" 
+                      ? "border-blue-500 bg-blue-500" 
+                      : "border-gray-300"
+                  }`}>
+                    {reportData.formType === "full" && (
+                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Full Form
+                  </h3>
+                  <p className="text-gray-600 mb-3">
+                    Detailed report with structured compliance fields, guided prompts, checklists, and structured evidence capture for deeper insight.
+                  </p>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Badge variant="outline">Comprehensive</Badge>
+                    <span>•</span>
+                    <span>Guided prompts</span>
+                    <span>•</span>
+                    <span>Structured sections</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Info Box */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Good to know:</p>
+                <p>
+                  This selection can be changed at any time. All data entered in shared fields 
+                  (e.g., home name, visit date, recommendations) will be preserved when switching between formats.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {showFormTypeError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <p className="text-sm text-red-800 font-medium">{formTypeError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Continue Button */}
+          <div className="flex justify-center pt-4">
+            <Button 
+              onClick={() => {
+                if (!reportData.formType) {
+                  setShowFormTypeError(true);
+                  setFormTypeError("Please select a form type to continue.");
+                  return;
+                }
+                setFormStep("form");
+              }}
+              className="px-8 py-2"
+              disabled={!reportData.formType}
+            >
+              Continue with {reportData.formType ? getFormTypeDisplayName(reportData.formType) : "Selected Form"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderReviewScreen = () => (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Report Review Header */}
@@ -1383,7 +2021,10 @@ const ReportBuilder = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Eye className="h-5 w-5 mr-2" />
-            Report Review - {reportData.homeName}
+            {reportData.settingType === "unregistered_provision"
+              ? "Assurance Review Report"
+              : "Report Review"}{" "}
+            - {reportData.homeName}
           </CardTitle>
           <CardDescription>
             Review your submitted report before sharing with stakeholders.
@@ -1408,11 +2049,25 @@ const ReportBuilder = () => {
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-600">
-                  Visit Type
+                  Visit Type *
                 </Label>
-                <p className="text-sm capitalize">
-                  {reportData.visitType || "Not specified"}
-                </p>
+                <Select
+                  value={reportData.visitType}
+                  onValueChange={(value: "announced" | "unannounced") =>
+                    setReportData((prev) => ({
+                      ...prev,
+                      visitType: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select visit type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="announced">Announced</SelectItem>
+                    <SelectItem value="unannounced">Unannounced</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1825,132 +2480,105 @@ const ReportBuilder = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/")}
+                onClick={() => {
+                  if (formStep === "form" && reportData.formType) {
+                    setFormStep("selection");
+                  } else {
+                    navigate("/");
+                  }
+                }}
                 className="flex items-center"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                {formStep === "form" && reportData.formType ? "Back to Form Selection" : "Back to Dashboard"}
               </Button>
+              
+              {/* Form Type Switch Button - Only show when in form step */}
+              {formStep === "form" && reportData.formType && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleFormTypeSwitch(reportData.formType === "quick" ? "full" : "quick")}
+                  className="flex items-center"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Switch to {reportData.formType === "quick" ? "Full Form" : "Quick Form"}
+                </Button>
+              )}
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  {viewMode === "review"
-                    ? "Report Review"
-                    : "New Regulation 44 Report"}
+                  {reportData.settingType === "unregistered_provision"
+                    ? "Regulation 44-Style Assurance Review"
+                    : "Regulation 44 Report"}{" "}
+                  – {reportData.homeName}
+                  {reportData.formType && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {getFormTypeDisplayName(reportData.formType)}
+                    </Badge>
+                  )}
                 </h1>
-                {lastSaved && viewMode === "create" && (
-                  <p className="text-sm text-gray-500">
-                    Last saved: {lastSaved.toLocaleTimeString()}
-                    {!isOnline && hasOfflineChanges && (
-                      <span className="ml-2 text-orange-600 font-medium">
-                        (Offline)
-                      </span>
-                    )}
-                  </p>
-                )}
+                <p className="text-sm text-gray-500">
+                  Visit Date:{" "}
+                  {new Date(reportData.visitDate).toLocaleDateString()} |
+                  Status: {isReportSubmitted ? "Submitted" : "Draft"}
+                  {lastSaved && viewMode === "create" && (
+                    <span className="ml-2">
+                      • Last saved: {lastSaved.toLocaleTimeString()}
+                      {!isOnline && hasOfflineChanges && (
+                        <span className="ml-1 text-orange-600 font-medium">
+                          (Offline)
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {viewMode === "create" && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSaveDraft()}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Draft
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadPDF}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download PDF
-                  </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Send className="h-4 w-4 mr-2" />
-                        Submit Final Report
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Submit Report</DialogTitle>
-                        <DialogDescription>
-                          Choose your submission options before finalizing the
-                          report.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="flex items-start space-x-3">
-                          <Checkbox
-                            id="generate-child-friendly"
-                            checked={generateChildFriendly}
-                            onCheckedChange={(checked) =>
-                              setGenerateChildFriendly(!!checked)
-                            }
-                          />
-                          <div>
-                            <Label
-                              htmlFor="generate-child-friendly"
-                              className="text-sm font-medium"
-                            >
-                              Generate a child-friendly summary
-                            </Label>
-                            <p className="text-xs text-gray-600 mt-1">
-                              Create a simplified, positive version of the
-                              report summary that's easy for young people to
-                              understand. This is for internal use only.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex space-x-2 pt-4">
-                          <Button
-                            onClick={handleSubmitFinalReport}
-                            className="flex-1"
-                          >
-                            {isGeneratingChildFriendly ? (
-                              <>
-                                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                                Generating...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Submit Report
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Navigation Tabs */}
-          <div className="mt-4">
-            <Tabs
-              value={viewMode}
-              onValueChange={(value) => setViewMode(value as ViewMode)}
-            >
-              <TabsList>
-                <TabsTrigger value="create" disabled={isReportSubmitted}>
-                  Create Report
-                </TabsTrigger>
-                <TabsTrigger value="review" disabled={!isReportSubmitted}>
-                  Review Report
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </div>
       </div>
+
+      {/* Form Type Switch Dialog */}
+      <Dialog open={showFormSwitchDialog} onOpenChange={setShowFormSwitchDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Switch Form Type</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to switch to {pendingFormType ? getFormTypeDisplayName(pendingFormType) : "the other form type"}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Your progress will be preserved</p>
+                  <p>
+                    All data entered in shared fields (home name, visit date, recommendations, etc.) 
+                    will be kept when switching between form types.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                onClick={confirmFormTypeSwitch}
+                className="flex-1"
+              >
+                Yes, Switch Forms
+              </Button>
+              <Button
+                variant="outline"
+                onClick={cancelFormTypeSwitch}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Sync Dialog */}
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
@@ -2014,7 +2642,9 @@ const ReportBuilder = () => {
 
       {viewMode === "review" && renderReviewScreen()}
 
-      {viewMode === "create" && (
+      {viewMode === "create" && formStep === "selection" && renderFormTypeSelection()}
+
+      {viewMode === "create" && formStep === "form" && (
         <div className="max-w-4xl mx-auto px-6 py-8">
           {/* Visit Information */}
           <Card className="mb-8 bg-white">
@@ -2078,9 +2708,9 @@ const ReportBuilder = () => {
                 </div>
               </div>
 
-              <div>
+              <div data-setting-type-select>
                 <Label className="text-sm font-medium text-gray-600">
-                  What type of setting are you visiting?
+                  What type of setting are you visiting? *
                 </Label>
                 <Select
                   value={reportData.settingType}
@@ -2090,7 +2720,9 @@ const ReportBuilder = () => {
                       | "unregistered_provision",
                   ) => handleSettingTypeChange(value)}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger
+                    className={`mt-2 ${showSettingTypeError && !reportData.settingType ? "border-red-500 ring-1 ring-red-500" : ""}`}
+                  >
                     <SelectValue placeholder="Select setting type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2103,72 +2735,54 @@ const ReportBuilder = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                {!reportData.settingType && (
+                  <p
+                    className={`text-sm mt-2 ${showSettingTypeError ? "text-red-600" : "text-gray-500"}`}
+                  >
+                    {showSettingTypeError
+                      ? settingTypeError
+                      : "Please select a setting type to begin completing this report."}
+                  </p>
+                )}
               </div>
 
               <div>
                 <Label className="text-sm font-medium text-gray-600">
-                  Visit Type
+                  Visit Type *
                 </Label>
-                <p className="text-sm capitalize">
-                  {reportData.visitType || "Not specified"}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">
-                  Setting Type
-                </Label>
-                <p className="text-sm">
-                  {reportData.settingType === "registered_childrens_home"
-                    ? "Registered Children's Home"
-                    : reportData.settingType === "unregistered_provision"
-                      ? "Regulation 44-Style Assurance Review – Unregistered Provision"
-                      : "Not specified"}
-                </p>
-              </div>
-
-              <div>
-                <Label>Spoke with children?</Label>
-                <div className="flex items-center space-x-6 mt-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="spoke-with-children-yes"
-                      checked={reportData.spokeWithChildren}
-                      onCheckedChange={(checked) => {
-                        setReportData((prev) => ({
-                          ...prev,
-                          spokeWithChildren: !!checked,
-                          childrenFeedback: checked
-                            ? prev.childrenFeedback
-                            : [],
-                        }));
-                      }}
-                    />
-                    <Label htmlFor="spoke-with-children-yes">Yes</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="spoke-with-children-no"
-                      checked={!reportData.spokeWithChildren}
-                      onCheckedChange={(checked) => {
-                        setReportData((prev) => ({
-                          ...prev,
-                          spokeWithChildren: !checked,
-                          childrenFeedback: checked
-                            ? []
-                            : prev.childrenFeedback,
-                        }));
-                      }}
-                    />
-                    <Label htmlFor="spoke-with-children-no">No</Label>
-                  </div>
-                </div>
+                <Select
+                  value={reportData.visitType}
+                  onValueChange={(value: "announced" | "unannounced") =>
+                    setReportData((prev) => ({
+                      ...prev,
+                      visitType: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select visit type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="announced">Announced</SelectItem>
+                    <SelectItem value="unannounced">Unannounced</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
 
           {/* Document Checklist */}
-          {reportData.settingType && (
-            <Card className="mb-8 bg-white">
+          <div data-next-section>
+            <Card
+              className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
+            >
+              {!isFormUnlocked && (
+                <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
+                  <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
+                    Select a setting type above to unlock this section
+                  </div>
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <CheckCircle className="h-5 w-5 mr-2" />
@@ -2244,13 +2858,126 @@ const ReportBuilder = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Generate Follow-Up Message to Manager */}
+                  {reportData.documentChecklist.length > 0 && (
+                    <div className="mt-6 border-t pt-6">
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-base font-medium">
+                            Generate Follow-Up Message to Manager
+                          </Label>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Create a follow-up email for any documents that were
+                            not available during your visit.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            onClick={generateFollowUpMessage}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <Mail className="h-4 w-4 mr-2" />
+                            Generate Follow-Up Message
+                          </Button>
+                          <div className="text-sm text-gray-500">
+                            {
+                              reportData.documentChecklist.filter(
+                                (item) => !item.checked,
+                              ).length
+                            }{" "}
+                            missing document
+                            {reportData.documentChecklist.filter(
+                              (item) => !item.checked,
+                            ).length !== 1
+                              ? "s"
+                              : ""}
+                          </div>
+                        </div>
+
+                        {showFollowUpMessage && followUpMessage && (
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="follow-up-message">
+                                Follow-Up Message (Editable)
+                              </Label>
+                              <Textarea
+                                id="follow-up-message"
+                                value={followUpMessage}
+                                onChange={(e) =>
+                                  setFollowUpMessage(e.target.value)
+                                }
+                                className="mt-1 min-h-[200px] font-mono text-sm"
+                                placeholder="Follow-up message will appear here..."
+                              />
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                onClick={copyFollowUpMessage}
+                                variant="outline"
+                                size="sm"
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy to Clipboard
+                              </Button>
+                              <Button
+                                onClick={generateFollowUpMessage}
+                                variant="outline"
+                                size="sm"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Regenerate
+                              </Button>
+                              <Button
+                                onClick={() => setShowFollowUpMessage(false)}
+                                variant="ghost"
+                                size="sm"
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Close
+                              </Button>
+                            </div>
+
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                              <div className="flex items-start space-x-2">
+                                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div className="text-sm text-blue-800">
+                                  <p className="font-medium mb-1">
+                                    Follow-Up Message Generated
+                                  </p>
+                                  <p>
+                                    The message above includes all missing
+                                    documents and suggests a follow-up date 7
+                                    days from your visit. You can edit the
+                                    message before copying or sending.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          )}
+          </div>
 
           {/* Report Sections */}
-          <Card className="mb-8 bg-white">
+          <Card
+            className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
+          >
+            {!isFormUnlocked && (
+              <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
+                <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
+                  Select a setting type above to unlock this section
+                </div>
+              </div>
+            )}
             <CardHeader>
               <CardTitle>Report Sections</CardTitle>
               <CardDescription>
@@ -3170,150 +3897,392 @@ const ReportBuilder = () => {
             </CardContent>
           </Card>
 
-          {/* AI Summary Generation */}
-          <Card className="mb-8 bg-white">
+          {/* Report Review and Download Section */}
+          <Card
+            className={`mb-8 bg-white relative ${!isFormUnlocked ? "opacity-50" : ""}`}
+          >
+            {!isFormUnlocked && (
+              <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
+                <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
+                  Select a setting type above to unlock this section
+                </div>
+              </div>
+            )}
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Sparkles className="h-5 w-5 mr-2" />
-                AI-Generated Summary
+                <Eye className="h-5 w-5 mr-2" />
+                Review & Download Report
               </CardTitle>
               <CardDescription>
-                Generate a comprehensive report summary using AI based on all
-                your inputs.
+                Review your complete report, make final edits, and choose from
+                multiple output formats.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex space-x-2">
-                <Button
-                  onClick={generateAISummary}
-                  disabled={isGeneratingAI}
-                  className="flex-1"
-                >
-                  {isGeneratingAI ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Generating Summary...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Generate Summary with AI
-                    </>
-                  )}
-                </Button>
+            <CardContent className="space-y-6">
+              {/* Report Preview Tabs */}
+              <Tabs defaultValue="manual" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="manual">Manual Report</TabsTrigger>
+                  <TabsTrigger value="ai-enhanced">AI-Enhanced</TabsTrigger>
+                  <TabsTrigger value="child-friendly">
+                    Child-Friendly
+                  </TabsTrigger>
+                </TabsList>
 
-                <Button
-                  onClick={generateChildFriendlySummary}
-                  disabled={isGeneratingChildFriendly}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {isGeneratingChildFriendly ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <User className="h-4 w-4 mr-2" />
-                      Generate Child-Friendly Summary
-                    </>
-                  )}
-                </Button>
-              </div>
+                {/* Manual Report Tab */}
+                <TabsContent value="manual" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        Manual Report Preview
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Your report exactly as written - no AI modifications
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleDownloadPDF}
+                      variant="default"
+                      className="min-w-[150px]"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  </div>
 
-              {childFriendlySummary && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label>Child-Friendly Summary</Label>
-                    <div className="flex items-center space-x-2">
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-purple-100 text-purple-800"
-                      >
-                        Child-Friendly
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          navigator.clipboard.writeText(childFriendlySummary)
-                        }
-                      >
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDownloadChildFriendlyPDF}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setChildFriendlySummary("")}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Clear
-                      </Button>
+                  <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+                    <div className="space-y-6">
+                      {/* Report Header */}
+                      <div className="border-b pb-4">
+                        <h2 className="text-xl font-bold mb-2">
+                          {reportData.settingType === "unregistered_provision"
+                            ? "Regulation 44-Style Assurance Review Report"
+                            : "Regulation 44 Visit Report"}
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <strong>Home:</strong> {reportData.homeName}
+                          </div>
+                          <div>
+                            <strong>Date:</strong>{" "}
+                            {new Date(
+                              reportData.visitDate,
+                            ).toLocaleDateString()}
+                          </div>
+                          <div>
+                            <strong>Address:</strong> {reportData.homeAddress}
+                          </div>
+                          <div>
+                            <strong>Visit Type:</strong>{" "}
+                            {reportData.visitType || "Not specified"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Report Sections */}
+                      {reportData.sections
+                        .filter((section) => section.content.trim())
+                        .map((section) => (
+                          <div key={section.id} className="border-b pb-4">
+                            <h3 className="font-semibold text-lg mb-2">
+                              {section.title}
+                            </h3>
+                            <Textarea
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="min-h-[100px] bg-white"
+                              placeholder={`Edit ${section.title.toLowerCase()} content...`}
+                            />
+                            {section.images.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-sm font-medium mb-2">
+                                  Attached Images: {section.images.length}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                      {/* Actions Section */}
+                      {reportData.actions.length > 0 && (
+                        <div className="border-b pb-4">
+                          <h3 className="font-semibold text-lg mb-2">
+                            Actions & Recommendations
+                          </h3>
+                          <div className="space-y-2">
+                            {reportData.actions.map((action, index) => (
+                              <div
+                                key={action.id}
+                                className="p-3 bg-white rounded border"
+                              >
+                                <p className="font-medium">
+                                  {index + 1}. {action.description}
+                                </p>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  <span>
+                                    Responsible: {action.responsiblePerson}
+                                  </span>{" "}
+                                  |
+                                  <span>
+                                    {" "}
+                                    Deadline:{" "}
+                                    {new Date(
+                                      action.deadline,
+                                    ).toLocaleDateString()}
+                                  </span>{" "}
+                                  |
+                                  <span>
+                                    {" "}
+                                    Status: {action.status.replace("-", " ")}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recommendations Summary */}
+                      {reportData.recommendationsSummary && (
+                        <div>
+                          <h3 className="font-semibold text-lg mb-2">
+                            Recommendations Summary
+                          </h3>
+                          <Textarea
+                            value={reportData.recommendationsSummary}
+                            onChange={(e) =>
+                              setReportData((prev) => ({
+                                ...prev,
+                                recommendationsSummary: e.target.value,
+                              }))
+                            }
+                            className="min-h-[100px] bg-white"
+                            placeholder="Edit recommendations summary..."
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="border rounded-lg">
-                    <Textarea
-                      value={childFriendlySummary}
-                      onChange={(e) => setChildFriendlySummary(e.target.value)}
-                      className="min-h-[300px] text-sm border-0 focus-visible:ring-0 resize-none"
-                      placeholder="Child-friendly summary will appear here..."
-                    />
+                </TabsContent>
+
+                {/* AI-Enhanced Report Tab */}
+                <TabsContent value="ai-enhanced" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        AI-Enhanced Report
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Professional AI-polished version with improved structure
+                        and tone
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {!aiPolishedContent && (
+                        <Button
+                          onClick={generateAIPolishedReport}
+                          disabled={isGeneratingAIPolished}
+                          variant="default"
+                        >
+                          {isGeneratingAIPolished ? (
+                            <>
+                              <Clock className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Generate AI Version
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {aiPolishedContent && (
+                        <>
+                          <Button
+                            onClick={() => setAiPolishedContent("")}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Regenerate
+                          </Button>
+                          <Button
+                            onClick={handleDownloadAIPolishedPDF}
+                            variant="default"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download PDF
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-3 p-3 bg-purple-50 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <User className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-purple-800">
-                        <p className="font-medium mb-1">
-                          For Internal Use Only
-                        </p>
-                        <p>
-                          This child-friendly summary is designed to help you
-                          prepare accessible information for young people in the
-                          home. You can edit the content above before saving or
-                          sharing. This summary is not part of the formal report
-                          submission.
-                        </p>
+
+                  {aiPolishedContent ? (
+                    <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+                      <Textarea
+                        value={aiPolishedContent}
+                        onChange={(e) => setAiPolishedContent(e.target.value)}
+                        className="min-h-[500px] bg-white text-sm"
+                        placeholder="AI-enhanced content will appear here..."
+                      />
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">
+                              AI-Enhanced Version
+                            </p>
+                            <p>
+                              This version has been professionally enhanced
+                              while maintaining the accuracy of your
+                              observations. You can edit the content above
+                              before downloading.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ) : (
+                    <div className="border rounded-lg p-8 text-center bg-gray-50">
+                      <Sparkles className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-2">
+                        AI-Enhanced Report Not Generated
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Click "Generate AI Version" to create a professionally
+                        polished version of your report.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Child-Friendly Summary Tab */}
+                <TabsContent value="child-friendly" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        Child-Friendly Summary
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Simplified, age-appropriate version for young people
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {!childFriendlySummary && (
+                        <Button
+                          onClick={generateChildFriendlySummary}
+                          disabled={isGeneratingChildFriendly}
+                          variant="secondary"
+                        >
+                          {isGeneratingChildFriendly ? (
+                            <>
+                              <Clock className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <User className="h-4 w-4 mr-2" />
+                              Generate Summary
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {childFriendlySummary && (
+                        <>
+                          <Button
+                            onClick={() => {
+                              setChildFriendlySummary("");
+                              setShowChildFriendlyPreview(false);
+                            }}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Regenerate
+                          </Button>
+                          <Button
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                childFriendlySummary,
+                              )
+                            }
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                          </Button>
+                          <Button
+                            onClick={handleDownloadChildFriendlyPDF}
+                            variant="secondary"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download PDF
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
 
-              <Button
-                onClick={generateAISummary}
-                disabled={isGeneratingAI}
-                className="w-full"
-              >
-                {isGeneratingAI ? (
-                  <>
-                    <Clock className="h-4 w-4 mr-2 animate-spin" />
-                    Generating Summary...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Summary with AI
-                  </>
-                )}
-              </Button>
+                  {childFriendlySummary ? (
+                    <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+                      <Textarea
+                        value={childFriendlySummary}
+                        onChange={(e) =>
+                          setChildFriendlySummary(e.target.value)
+                        }
+                        className="min-h-[500px] bg-white text-sm"
+                        placeholder="Child-friendly summary will appear here..."
+                      />
+                      <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <User className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-purple-800">
+                            <p className="font-medium mb-1">
+                              For Internal Use Only
+                            </p>
+                            <p>
+                              This child-friendly summary is designed to help
+                              you prepare accessible information for young
+                              people in the home. You can edit the content above
+                              before downloading.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-8 text-center bg-gray-50">
+                      <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-2">
+                        Child-Friendly Summary Not Generated
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Click "Generate Summary" to create a simplified version
+                        that can be shared with young people.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
 
+              {/* Legacy AI Summary (kept for backward compatibility) */}
               {aiGeneratedContent && (
-                <div>
+                <div className="border-t pt-6">
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Generated Report Summary</Label>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Legacy AI Summary
+                    </Label>
                     <div className="flex items-center space-x-2">
                       <Badge variant="secondary" className="text-xs">
-                        AI Generated
+                        Legacy
                       </Badge>
                       <Button
                         variant="outline"
@@ -3325,27 +4294,13 @@ const ReportBuilder = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="border rounded-lg">
+                  <div className="border rounded-lg max-h-[200px] overflow-y-auto">
                     <Textarea
                       value={aiGeneratedContent}
                       onChange={(e) => setAiGeneratedContent(e.target.value)}
-                      className="min-h-[400px] text-sm border-0 focus-visible:ring-0 resize-none"
-                      placeholder="AI-generated summary will appear here..."
+                      className="min-h-[150px] text-sm border-0 focus-visible:ring-0 resize-none bg-gray-50"
+                      placeholder="Legacy AI summary..."
                     />
-                  </div>
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">Review and Edit</p>
-                        <p>
-                          This AI-generated summary includes content from all
-                          completed report sections and actions. Please review
-                          and edit as needed before saving or sharing the
-                          report.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -3380,17 +4335,25 @@ const ReportBuilder = () => {
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" onClick={() => handleSaveDraft()}>
+                <Button
+                  variant="outline"
+                  onClick={() => handleSaveDraft()}
+                  disabled={!isFormUnlocked}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   Save Draft
                 </Button>
-                <Button variant="outline" onClick={handleDownloadPDF}>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadPDF}
+                  disabled={!isFormUnlocked}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
                 </Button>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button disabled={!isFormUnlocked}>
                       <Send className="h-4 w-4 mr-2" />
                       Submit Final Report
                     </Button>
@@ -3452,6 +4415,7 @@ const ReportBuilder = () => {
             </div>
           </div>
         </div>
+      )}
       )}
     </div>
   );
