@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Switch } from "./ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   ArrowLeft,
@@ -133,6 +134,75 @@ interface FinalComments {
   }>;
 }
 
+interface QualityCareData {
+  externalEnvironment: {
+    condition: string;
+    safety: boolean;
+    maintenance: string;
+    privacy: boolean;
+    homeliness: string;
+    comments: string;
+  };
+  internalEnvironment: {
+    condition: string;
+    safety: boolean;
+    maintenance: string;
+    privacy: boolean;
+    homeliness: string;
+    comments: string;
+  };
+  overallImpression: {
+    condition: string;
+    safety: boolean;
+    maintenance: string;
+    privacy: boolean;
+    homeliness: string;
+    comments: string;
+  };
+  generalComments: string;
+}
+
+interface EducationData {
+  attendanceStatus: string;
+  engagementSummary: string;
+  educationPlans: Array<{
+    id: string;
+    name: string;
+    checked: boolean;
+  }>;
+}
+
+interface EnjoymentAchievementData {
+  selectedHobbies: string[];
+  engagementSupport: string;
+  activityLogs: Array<{
+    id: string;
+    activity: string;
+    date: string;
+    notes: string;
+  }>;
+}
+
+interface HealthWellbeingData {
+  healthRegistration: boolean;
+  services: string[];
+  notes: string;
+}
+
+interface PositiveRelationshipsData {
+  bondingExamples: string;
+  conflictResolutionExamples: string;
+  concernsRaised: boolean;
+}
+
+interface CarePlanningData {
+  planProgress: string;
+  needsAreas: string[];
+  identityComments: string;
+  independenceComments: string;
+  generalComments: string;
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
@@ -152,6 +222,12 @@ interface ReportData {
   wellbeingOpinion: boolean | null;
   wellbeingComment: string;
   finalComments: FinalComments;
+  qualityCareData: QualityCareData;
+  educationData: EducationData;
+  enjoymentAchievementData: EnjoymentAchievementData;
+  healthWellbeingData: HealthWellbeingData;
+  positiveRelationshipsData: PositiveRelationshipsData;
+  carePlanningData: CarePlanningData;
 }
 
 interface ReportVersion {
@@ -167,22 +243,32 @@ type FormType = "quick";
 type FormStep = "selection" | "form";
 
 const REGISTERED_CHILDRENS_HOME_SECTIONS = [
-  { id: "summary", title: "Summary of Visit" },
+  { id: "quality_care", title: "Quality & Purpose of Care" },
   { id: "voice", title: "Voice of the Child" },
   { id: "environment", title: "Observations of the Environment" },
   { id: "staff", title: "Staff & Management Discussion" },
   { id: "records", title: "Records Reviewed" },
+  { id: "education", title: "Education (Reg 8)" },
+  { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
+  { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
+  { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
+  { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "compliance", title: "Compliance & Concerns" },
 ];
 
 const UNREGISTERED_PROVISION_SECTIONS = [
-  { id: "summary", title: "Summary of Visit" },
+  { id: "quality_care", title: "Quality & Purpose of Care" },
   { id: "welfare_safeguarding", title: "Welfare & Safeguarding" },
   { id: "policies_statement", title: "Policies & Statement of Purpose" },
   { id: "environment_premises", title: "Environment & Premises" },
   { id: "staffing_training", title: "Staffing & Training" },
   { id: "support_young_person", title: "Support for the Young Person" },
   { id: "records_documentation", title: "Records & Documentation" },
+  { id: "education", title: "Education (Reg 8)" },
+  { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
+  { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
+  { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
+  { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "leadership_oversight", title: "Leadership & Oversight" },
   { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
 ];
@@ -196,6 +282,43 @@ const STAFF_ROLES = [
   "Support Worker",
   "Residential Worker",
   "Other",
+];
+
+const HOBBY_OPTIONS = [
+  "Sports & Physical Activities",
+  "Arts & Crafts",
+  "Music & Dance",
+  "Reading & Writing",
+  "Gaming & Technology",
+  "Cooking & Baking",
+  "Outdoor Activities",
+  "Drama & Theatre",
+  "Photography & Film",
+  "Science & Nature",
+  "Board Games & Puzzles",
+  "Volunteering & Community Work",
+  "Fashion & Beauty",
+  "Collecting",
+  "Learning Languages",
+  "Other",
+];
+
+const HEALTH_SERVICES = [
+  "GP (General Practitioner)",
+  "CAMHS (Child and Adolescent Mental Health Services)",
+  "Dentist",
+  "Opticians",
+];
+
+const CARE_PLANNING_NEEDS_AREAS = [
+  "Identity",
+  "Independence",
+  "Education & Training",
+  "Health & Wellbeing",
+  "Relationships",
+  "Life Skills",
+  "Emotional Support",
+  "Cultural Needs",
 ];
 
 const REGISTERED_HOME_DOCUMENTS = [
@@ -321,6 +444,68 @@ const ReportBuilder = () => {
       wellbeingExplanation: "",
       recommendations: [],
     },
+    qualityCareData: {
+      externalEnvironment: {
+        condition: "",
+        safety: false,
+        maintenance: "",
+        privacy: false,
+        homeliness: "",
+        comments: "",
+      },
+      internalEnvironment: {
+        condition: "",
+        safety: false,
+        maintenance: "",
+        privacy: false,
+        homeliness: "",
+        comments: "",
+      },
+      overallImpression: {
+        condition: "",
+        safety: false,
+        maintenance: "",
+        privacy: false,
+        homeliness: "",
+        comments: "",
+      },
+      generalComments: "",
+    },
+    educationData: {
+      attendanceStatus: "",
+      engagementSummary: "",
+      educationPlans: [
+        { id: "pep", name: "Personal Education Plan (PEP)", checked: false },
+        { id: "ehcp", name: "Education, Health and Care Plan (EHCP)", checked: false },
+        { id: "sen_support", name: "SEN Support Plan", checked: false },
+        { id: "individual_learning", name: "Individual Learning Plan", checked: false },
+        { id: "behaviour_support", name: "Behaviour Support Plan", checked: false },
+        { id: "transition_plan", name: "Transition Plan", checked: false },
+        { id: "careers_guidance", name: "Careers Guidance Plan", checked: false },
+      ],
+    },
+    enjoymentAchievementData: {
+      selectedHobbies: [],
+      engagementSupport: "",
+      activityLogs: [],
+    },
+    healthWellbeingData: {
+      healthRegistration: false,
+      services: [],
+      notes: "",
+    },
+    positiveRelationshipsData: {
+      bondingExamples: "",
+      conflictResolutionExamples: "",
+      concernsRaised: false,
+    },
+    carePlanningData: {
+      planProgress: "",
+      needsAreas: [],
+      identityComments: "",
+      independenceComments: "",
+      generalComments: "",
+    },
   });
 
   // State for form validation and unlocking
@@ -434,6 +619,86 @@ const ReportBuilder = () => {
             wellbeingOpinion: "",
             wellbeingExplanation: "",
             recommendations: [],
+          };
+        }
+        // Ensure qualityCareData exists for backward compatibility
+        if (!parsedData.reportData.qualityCareData) {
+          parsedData.reportData.qualityCareData = {
+            externalEnvironment: {
+              condition: "",
+              safety: false,
+              maintenance: "",
+              privacy: false,
+              homeliness: "",
+              comments: "",
+            },
+            internalEnvironment: {
+              condition: "",
+              safety: false,
+              maintenance: "",
+              privacy: false,
+              homeliness: "",
+              comments: "",
+            },
+            overallImpression: {
+              condition: "",
+              safety: false,
+              maintenance: "",
+              privacy: false,
+              homeliness: "",
+              comments: "",
+            },
+            generalComments: "",
+          };
+        }
+        // Ensure educationData exists for backward compatibility
+        if (!parsedData.reportData.educationData) {
+          parsedData.reportData.educationData = {
+            attendanceStatus: "",
+            engagementSummary: "",
+            educationPlans: [
+              { id: "pep", name: "Personal Education Plan (PEP)", checked: false },
+              { id: "ehcp", name: "Education, Health and Care Plan (EHCP)", checked: false },
+              { id: "sen_support", name: "SEN Support Plan", checked: false },
+              { id: "individual_learning", name: "Individual Learning Plan", checked: false },
+              { id: "behaviour_support", name: "Behaviour Support Plan", checked: false },
+              { id: "transition_plan", name: "Transition Plan", checked: false },
+              { id: "careers_guidance", name: "Careers Guidance Plan", checked: false },
+            ],
+          };
+        }
+        // Ensure enjoymentAchievementData exists for backward compatibility
+        if (!parsedData.reportData.enjoymentAchievementData) {
+          parsedData.reportData.enjoymentAchievementData = {
+            selectedHobbies: [],
+            engagementSupport: "",
+            activityLogs: [],
+          };
+        }
+        // Ensure healthWellbeingData exists for backward compatibility
+        if (!parsedData.reportData.healthWellbeingData) {
+          parsedData.reportData.healthWellbeingData = {
+            healthRegistration: false,
+            services: [],
+            notes: "",
+          };
+        }
+        // Ensure positiveRelationshipsData exists for backward compatibility
+        if (!parsedData.reportData.positiveRelationshipsData) {
+          parsedData.reportData.positiveRelationshipsData = {
+            bondingExamples: "",
+            conflictResolutionExamples: "",
+            concernsRaised: false,
+          };
+        }
+        // Ensure carePlanningData exists for backward compatibility
+        if (!parsedData.reportData.carePlanningData) {
+          parsedData.reportData.carePlanningData = {
+            planProgress: "",
+            needsAreas: [],
+            identityComments: "",
+            independenceComments: "",
+            generalComments: "",
           };
         }
         setReportData(parsedData.reportData);
@@ -987,7 +1252,7 @@ const ReportBuilder = () => {
     // Simulate AI generation for child-friendly summary
     setTimeout(() => {
       const summarySection = reportData.sections.find(
-        (s) => s.id === "summary",
+        (s) => s.id === "quality_care",
       );
       const voiceSection = reportData.sections.find((s) => s.id === "voice");
       const environmentSection = reportData.sections.find(
@@ -2947,7 +3212,506 @@ Back to Dashboard
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4">
-                      {section.id === "recommendations" ? (
+                      {section.id === "quality_care" ? (
+                        /* Quality & Purpose of Care Section */
+                        <div className="space-y-8">
+                          {/* External Environment */}
+                          <div className="space-y-4">
+                            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                              External Environment
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                <Label htmlFor="ext-condition">Condition</Label>
+                                <Select
+                                  value={reportData.qualityCareData.externalEnvironment.condition}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        externalEnvironment: {
+                                          ...prev.qualityCareData.externalEnvironment,
+                                          condition: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select condition" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="ext-maintenance">Maintenance</Label>
+                                <Select
+                                  value={reportData.qualityCareData.externalEnvironment.maintenance}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        externalEnvironment: {
+                                          ...prev.qualityCareData.externalEnvironment,
+                                          maintenance: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select maintenance level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="ext-homeliness">Homeliness</Label>
+                                <Select
+                                  value={reportData.qualityCareData.externalEnvironment.homeliness}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        externalEnvironment: {
+                                          ...prev.qualityCareData.externalEnvironment,
+                                          homeliness: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select homeliness level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="ext-safety">Safety Standards Met</Label>
+                                  <Switch
+                                    id="ext-safety"
+                                    checked={reportData.qualityCareData.externalEnvironment.safety}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          externalEnvironment: {
+                                            ...prev.qualityCareData.externalEnvironment,
+                                            safety: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="ext-privacy">Privacy Respected</Label>
+                                  <Switch
+                                    id="ext-privacy"
+                                    checked={reportData.qualityCareData.externalEnvironment.privacy}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          externalEnvironment: {
+                                            ...prev.qualityCareData.externalEnvironment,
+                                            privacy: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="ext-comments">Additional Comments (Optional)</Label>
+                              <Textarea
+                                id="ext-comments"
+                                value={reportData.qualityCareData.externalEnvironment.comments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    qualityCareData: {
+                                      ...prev.qualityCareData,
+                                      externalEnvironment: {
+                                        ...prev.qualityCareData.externalEnvironment,
+                                        comments: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
+                                placeholder="Any specific observations about the external environment..."
+                                className="mt-1 min-h-[80px]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Internal Environment */}
+                          <div className="space-y-4">
+                            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                              Internal Environment
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                <Label htmlFor="int-condition">Condition</Label>
+                                <Select
+                                  value={reportData.qualityCareData.internalEnvironment.condition}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        internalEnvironment: {
+                                          ...prev.qualityCareData.internalEnvironment,
+                                          condition: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select condition" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="int-maintenance">Maintenance</Label>
+                                <Select
+                                  value={reportData.qualityCareData.internalEnvironment.maintenance}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        internalEnvironment: {
+                                          ...prev.qualityCareData.internalEnvironment,
+                                          maintenance: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select maintenance level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="int-homeliness">Homeliness</Label>
+                                <Select
+                                  value={reportData.qualityCareData.internalEnvironment.homeliness}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        internalEnvironment: {
+                                          ...prev.qualityCareData.internalEnvironment,
+                                          homeliness: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select homeliness level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="int-safety">Safety Standards Met</Label>
+                                  <Switch
+                                    id="int-safety"
+                                    checked={reportData.qualityCareData.internalEnvironment.safety}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          internalEnvironment: {
+                                            ...prev.qualityCareData.internalEnvironment,
+                                            safety: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="int-privacy">Privacy Respected</Label>
+                                  <Switch
+                                    id="int-privacy"
+                                    checked={reportData.qualityCareData.internalEnvironment.privacy}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          internalEnvironment: {
+                                            ...prev.qualityCareData.internalEnvironment,
+                                            privacy: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="int-comments">Additional Comments (Optional)</Label>
+                              <Textarea
+                                id="int-comments"
+                                value={reportData.qualityCareData.internalEnvironment.comments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    qualityCareData: {
+                                      ...prev.qualityCareData,
+                                      internalEnvironment: {
+                                        ...prev.qualityCareData.internalEnvironment,
+                                        comments: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
+                                placeholder="Any specific observations about the internal environment..."
+                                className="mt-1 min-h-[80px]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Overall Impression */}
+                          <div className="space-y-4">
+                            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                              Overall Impression
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                <Label htmlFor="overall-condition">Condition</Label>
+                                <Select
+                                  value={reportData.qualityCareData.overallImpression.condition}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        overallImpression: {
+                                          ...prev.qualityCareData.overallImpression,
+                                          condition: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select condition" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="overall-maintenance">Maintenance</Label>
+                                <Select
+                                  value={reportData.qualityCareData.overallImpression.maintenance}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        overallImpression: {
+                                          ...prev.qualityCareData.overallImpression,
+                                          maintenance: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select maintenance level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="overall-homeliness">Homeliness</Label>
+                                <Select
+                                  value={reportData.qualityCareData.overallImpression.homeliness}
+                                  onValueChange={(value) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      qualityCareData: {
+                                        ...prev.qualityCareData,
+                                        overallImpression: {
+                                          ...prev.qualityCareData.overallImpression,
+                                          homeliness: value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select homeliness level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="excellent">Excellent</SelectItem>
+                                    <SelectItem value="good">Good</SelectItem>
+                                    <SelectItem value="satisfactory">Satisfactory</SelectItem>
+                                    <SelectItem value="requires-improvement">Requires Improvement</SelectItem>
+                                    <SelectItem value="poor">Poor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="overall-safety">Safety Standards Met</Label>
+                                  <Switch
+                                    id="overall-safety"
+                                    checked={reportData.qualityCareData.overallImpression.safety}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          overallImpression: {
+                                            ...prev.qualityCareData.overallImpression,
+                                            safety: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="overall-privacy">Privacy Respected</Label>
+                                  <Switch
+                                    id="overall-privacy"
+                                    checked={reportData.qualityCareData.overallImpression.privacy}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        qualityCareData: {
+                                          ...prev.qualityCareData,
+                                          overallImpression: {
+                                            ...prev.qualityCareData.overallImpression,
+                                            privacy: checked,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="overall-comments">Additional Comments (Optional)</Label>
+                              <Textarea
+                                id="overall-comments"
+                                value={reportData.qualityCareData.overallImpression.comments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    qualityCareData: {
+                                      ...prev.qualityCareData,
+                                      overallImpression: {
+                                        ...prev.qualityCareData.overallImpression,
+                                        comments: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
+                                placeholder="Any specific observations about the overall impression..."
+                                className="mt-1 min-h-[80px]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* General Comments */}
+                          <div className="space-y-4">
+                            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                              General Comments
+                            </h4>
+                            <div>
+                              <Label htmlFor="general-comments">Overall Assessment (Optional)</Label>
+                              <Textarea
+                                id="general-comments"
+                                value={reportData.qualityCareData.generalComments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    qualityCareData: {
+                                      ...prev.qualityCareData,
+                                      generalComments: e.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Provide an overall assessment of the quality and purpose of care at this setting..."
+                                className="mt-1 min-h-[120px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : section.id === "recommendations" ? (
                         /* Recommendations & Actions Section with embedded Action Tracker */
                         <div className="space-y-6">
                           {/* Summary Field */}
@@ -3208,6 +3972,581 @@ Back to Dashboard
                                 Add Action
                               </Button>
                             </div>
+                          </div>
+                        </div>
+                      ) : section.id === "education" ? (
+                        /* Education (Reg 8) Section */
+                        <div className="space-y-6">
+                          {/* Attendance Status Dropdown */}
+                          <div>
+                            <Label htmlFor="attendance-status">Attendance Status</Label>
+                            <Select
+                              value={reportData.educationData.attendanceStatus}
+                              onValueChange={(value) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  educationData: {
+                                    ...prev.educationData,
+                                    attendanceStatus: value,
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select attendance status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="excellent">Excellent (95%+)</SelectItem>
+                                <SelectItem value="good">Good (90-94%)</SelectItem>
+                                <SelectItem value="satisfactory">Satisfactory (85-89%)</SelectItem>
+                                <SelectItem value="requires-improvement">Requires Improvement (80-84%)</SelectItem>
+                                <SelectItem value="poor">Poor (Below 80%)</SelectItem>
+                                <SelectItem value="not-in-education">Not Currently in Education</SelectItem>
+                                <SelectItem value="home-educated">Home Educated</SelectItem>
+                                <SelectItem value="alternative-provision">Alternative Provision</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Engagement Summary Text Box */}
+                          <div>
+                            <Label htmlFor="engagement-summary">Engagement Summary</Label>
+                            <Textarea
+                              id="engagement-summary"
+                              value={reportData.educationData.engagementSummary}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  educationData: {
+                                    ...prev.educationData,
+                                    engagementSummary: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Describe the young person's engagement with education, any challenges, achievements, and support being provided..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Education Plans Checklist */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Education Plans in Place
+                            </Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {reportData.educationData.educationPlans.map((plan) => (
+                                <div
+                                  key={plan.id}
+                                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                                >
+                                  <Checkbox
+                                    id={`education-plan-${plan.id}`}
+                                    checked={plan.checked}
+                                    onCheckedChange={(checked) =>
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        educationData: {
+                                          ...prev.educationData,
+                                          educationPlans: prev.educationData.educationPlans.map((p) =>
+                                            p.id === plan.id ? { ...p, checked: !!checked } : p
+                                          ),
+                                        },
+                                      }))
+                                    }
+                                  />
+                                  <Label
+                                    htmlFor={`education-plan-${plan.id}`}
+                                    className="text-sm font-medium flex-1 cursor-pointer"
+                                  >
+                                    {plan.name}
+                                  </Label>
+                                  {plan.checked && (
+                                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about education provision, school relationships, or educational outcomes..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "enjoyment_achievement" ? (
+                        /* Enjoyment & Achievement (Reg 9) Section */
+                        <div className="space-y-6">
+                          {/* Multi-select Hobbies */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Hobbies & Interests
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Select all hobbies and interests that the young people engage in or have expressed interest in.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {HOBBY_OPTIONS.map((hobby) => (
+                                <div
+                                  key={hobby}
+                                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                                >
+                                  <Checkbox
+                                    id={`hobby-${hobby.replace(/\s+/g, '-').toLowerCase()}`}
+                                    checked={reportData.enjoymentAchievementData.selectedHobbies.includes(hobby)}
+                                    onCheckedChange={(checked) => {
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        enjoymentAchievementData: {
+                                          ...prev.enjoymentAchievementData,
+                                          selectedHobbies: checked
+                                            ? [...prev.enjoymentAchievementData.selectedHobbies, hobby]
+                                            : prev.enjoymentAchievementData.selectedHobbies.filter(h => h !== hobby),
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`hobby-${hobby.replace(/\s+/g, '-').toLowerCase()}`}
+                                    className="text-sm font-medium flex-1 cursor-pointer"
+                                  >
+                                    {hobby}
+                                  </Label>
+                                  {reportData.enjoymentAchievementData.selectedHobbies.includes(hobby) && (
+                                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {reportData.enjoymentAchievementData.selectedHobbies.length > 0 && (
+                              <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800 mb-2">
+                                  Selected Hobbies ({reportData.enjoymentAchievementData.selectedHobbies.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {reportData.enjoymentAchievementData.selectedHobbies.map((hobby) => (
+                                    <Badge key={hobby} variant="secondary" className="text-xs">
+                                      {hobby}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Engagement Support Text Area */}
+                          <div>
+                            <Label htmlFor="engagement-support">Engagement Support</Label>
+                            <Textarea
+                              id="engagement-support"
+                              value={reportData.enjoymentAchievementData.engagementSupport}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  enjoymentAchievementData: {
+                                    ...prev.enjoymentAchievementData,
+                                    engagementSupport: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Describe how staff support young people to engage in enjoyable activities, pursue their interests, and achieve their goals..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Activity Logs - Repeatable Entries */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Activity Logs
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Record specific activities, achievements, or notable moments related to enjoyment and achievement.
+                            </p>
+                            
+                            {reportData.enjoymentAchievementData.activityLogs.length > 0 && (
+                              <div className="space-y-4 mb-6">
+                                {reportData.enjoymentAchievementData.activityLogs.map((log, index) => (
+                                  <div
+                                    key={log.id}
+                                    className="border rounded-lg p-4 space-y-4 bg-blue-50"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="font-medium text-lg">
+                                        Activity Log {index + 1}
+                                      </h4>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setReportData((prev) => ({
+                                            ...prev,
+                                            enjoymentAchievementData: {
+                                              ...prev.enjoymentAchievementData,
+                                              activityLogs: prev.enjoymentAchievementData.activityLogs.filter(
+                                                (l) => l.id !== log.id
+                                              ),
+                                            },
+                                          }));
+                                        }}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <X className="h-4 w-4 mr-1" />
+                                        Remove
+                                      </Button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                        <Label htmlFor={`activity-${log.id}`}>
+                                          Activity/Achievement *
+                                        </Label>
+                                        <Input
+                                          id={`activity-${log.id}`}
+                                          value={log.activity}
+                                          onChange={(e) => {
+                                            setReportData((prev) => ({
+                                              ...prev,
+                                              enjoymentAchievementData: {
+                                                ...prev.enjoymentAchievementData,
+                                                activityLogs: prev.enjoymentAchievementData.activityLogs.map((l) =>
+                                                  l.id === log.id ? { ...l, activity: e.target.value } : l
+                                                ),
+                                              },
+                                            }));
+                                          }}
+                                          placeholder="e.g., Won football match, Completed art project"
+                                          className="mt-1"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`date-${log.id}`}>
+                                          Date
+                                        </Label>
+                                        <Input
+                                          id={`date-${log.id}`}
+                                          type="date"
+                                          value={log.date}
+                                          onChange={(e) => {
+                                            setReportData((prev) => ({
+                                              ...prev,
+                                              enjoymentAchievementData: {
+                                                ...prev.enjoymentAchievementData,
+                                                activityLogs: prev.enjoymentAchievementData.activityLogs.map((l) =>
+                                                  l.id === log.id ? { ...l, date: e.target.value } : l
+                                                ),
+                                              },
+                                            }));
+                                          }}
+                                          className="mt-1"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <Label htmlFor={`notes-${log.id}`}>
+                                        Notes & Observations
+                                      </Label>
+                                      <Textarea
+                                        id={`notes-${log.id}`}
+                                        value={log.notes}
+                                        onChange={(e) => {
+                                          setReportData((prev) => ({
+                                            ...prev,
+                                            enjoymentAchievementData: {
+                                              ...prev.enjoymentAchievementData,
+                                              activityLogs: prev.enjoymentAchievementData.activityLogs.map((l) =>
+                                                l.id === log.id ? { ...l, notes: e.target.value } : l
+                                              ),
+                                            },
+                                          }));
+                                        }}
+                                        placeholder="Describe the activity, the young person's engagement, any achievements or challenges..."
+                                        className="mt-1 min-h-[80px]"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <Button
+                              onClick={() => {
+                                const newLog = {
+                                  id: Date.now().toString(),
+                                  activity: "",
+                                  date: new Date().toISOString().split('T')[0],
+                                  notes: "",
+                                };
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  enjoymentAchievementData: {
+                                    ...prev.enjoymentAchievementData,
+                                    activityLogs: [...prev.enjoymentAchievementData.activityLogs, newLog],
+                                  },
+                                }));
+                              }}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Activity Log Entry
+                            </Button>
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about enjoyment, achievement, or recreational activities..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "health_wellbeing" ? (
+                        /* Health & Wellbeing (Reg 10) Section */
+                        <div className="space-y-6">
+                          {/* Health Registration Toggle */}
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="health-registration" className="text-base font-medium">
+                                Health Registration
+                              </Label>
+                              <Switch
+                                id="health-registration"
+                                checked={reportData.healthWellbeingData.healthRegistration}
+                                onCheckedChange={(checked) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    healthWellbeingData: {
+                                      ...prev.healthWellbeingData,
+                                      healthRegistration: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Is the young person registered with appropriate health services?
+                            </p>
+                          </div>
+
+                          {/* Multi-select Services */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Health Services
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Select all health services that the young person is registered with or has access to.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {HEALTH_SERVICES.map((service) => (
+                                <div
+                                  key={service}
+                                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                                >
+                                  <Checkbox
+                                    id={`service-${service.replace(/\s+/g, '-').toLowerCase()}`}
+                                    checked={reportData.healthWellbeingData.services.includes(service)}
+                                    onCheckedChange={(checked) => {
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        healthWellbeingData: {
+                                          ...prev.healthWellbeingData,
+                                          services: checked
+                                            ? [...prev.healthWellbeingData.services, service]
+                                            : prev.healthWellbeingData.services.filter(s => s !== service),
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`service-${service.replace(/\s+/g, '-').toLowerCase()}`}
+                                    className="text-sm font-medium flex-1 cursor-pointer"
+                                  >
+                                    {service}
+                                  </Label>
+                                  {reportData.healthWellbeingData.services.includes(service) && (
+                                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {reportData.healthWellbeingData.services.length > 0 && (
+                              <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800 mb-2">
+                                  Selected Services ({reportData.healthWellbeingData.services.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {reportData.healthWellbeingData.services.map((service) => (
+                                    <Badge key={service} variant="secondary" className="text-xs">
+                                      {service}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Optional Notes */}
+                          <div>
+                            <Label htmlFor="health-notes">Additional Notes (Optional)</Label>
+                            <Textarea
+                              id="health-notes"
+                              value={reportData.healthWellbeingData.notes}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  healthWellbeingData: {
+                                    ...prev.healthWellbeingData,
+                                    notes: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Any additional observations about health and wellbeing provision, appointments, medication management, or health-related concerns..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Additional Notes from Section Content */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              General Health & Wellbeing Observations (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Record any general observations about the young person's health and wellbeing, including physical health, mental health support, and overall wellness..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "positive_relationships" ? (
+                        /* Positive Relationships (Reg 11) Section */
+                        <div className="space-y-6">
+                          {/* Bonding Examples */}
+                          <div>
+                            <Label htmlFor="bonding-examples">Examples of Bonding</Label>
+                            <Textarea
+                              id="bonding-examples"
+                              value={reportData.positiveRelationshipsData.bondingExamples}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  positiveRelationshipsData: {
+                                    ...prev.positiveRelationshipsData,
+                                    bondingExamples: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Describe examples of positive bonding between young people and staff, or between young people themselves. Include specific observations of trust, attachment, and meaningful relationships..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Conflict Resolution Examples */}
+                          <div>
+                            <Label htmlFor="conflict-resolution-examples">Examples of Conflict Resolution</Label>
+                            <Textarea
+                              id="conflict-resolution-examples"
+                              value={reportData.positiveRelationshipsData.conflictResolutionExamples}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  positiveRelationshipsData: {
+                                    ...prev.positiveRelationshipsData,
+                                    conflictResolutionExamples: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Describe how conflicts are resolved in the home. Include examples of mediation, problem-solving approaches, and how young people are supported to resolve disagreements..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Concerns Toggle */}
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="relationships-concerns" className="text-base font-medium">
+                                Concerns About Relationships
+                              </Label>
+                              <Switch
+                                id="relationships-concerns"
+                                checked={reportData.positiveRelationshipsData.concernsRaised}
+                                onCheckedChange={(checked) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    positiveRelationshipsData: {
+                                      ...prev.positiveRelationshipsData,
+                                      concernsRaised: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Toggle this on if you have concerns about relationships in the home that need to be addressed.
+                            </p>
+                            {reportData.positiveRelationshipsData.concernsRaised && (
+                              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div className="flex items-start space-x-2">
+                                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                                  <div className="text-sm text-red-800">
+                                    <p className="font-medium mb-1">Concerns Identified</p>
+                                    <p>
+                                      Please ensure that specific concerns about relationships are documented in the examples above or in the additional notes section below.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about relationships in the home, including peer relationships, staff-young person relationships, or family contact arrangements..."
+                              className="mt-1 min-h-[100px]"
+                            />
                           </div>
                         </div>
                       ) : (
