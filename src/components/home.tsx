@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { useNavigate, useLocation } from "react-router-dom";
+
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -37,6 +31,11 @@ import {
   Calendar,
   FileText,
   Users,
+  Settings,
+  Home,
+  BarChart3,
+  ClipboardList,
+  TrendingUp,
 } from "lucide-react";
 
 interface Home {
@@ -98,6 +97,7 @@ const mockHomes: Home[] = [
 
 const HomeDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [homes, setHomes] = useState<Home[]>(mockHomes);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRegion, setFilterRegion] = useState("all");
@@ -190,306 +190,394 @@ const HomeDashboard = () => {
 
   const visitsDueCount = homes.filter(isVisitDue).length;
 
+  const sidebarItems = [
+    {
+      name: "Dashboard",
+      icon: Home,
+      path: "/",
+      active: location.pathname === "/",
+    },
+    {
+      name: "Homes",
+      icon: Building,
+      path: "/",
+      active: location.pathname === "/",
+    },
+    {
+      name: "Reports",
+      icon: FileText,
+      path: "/reports",
+      active: location.pathname === "/reports",
+    },
+    {
+      name: "Visits",
+      icon: Calendar,
+      path: "/visits",
+      active: location.pathname === "/visits",
+    },
+    {
+      name: "Insights",
+      icon: TrendingUp,
+      path: "/insights",
+      active: false,
+      comingSoon: true,
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Home Management Dashboard
-          </h1>
-          <p className="text-gray-600">
-            Manage your assigned children's homes and supported accommodation
-            services
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white shadow-xl border-r border-gray-100 sticky top-0 h-screen">
+        <div className="p-6">
+          <div className="flex items-center space-x-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <Building className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Regulation 44</h1>
+              <p className="text-xs text-gray-500">Reporting Platform</p>
+            </div>
+          </div>
+
+          <nav className="space-y-2">
+            {sidebarItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => !item.comingSoon && navigate(item.path)}
+                  disabled={item.comingSoon}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
+                    item.active
+                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+                      : item.comingSoon
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-gray-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600"
+                  }`}
+                >
+                  <Icon
+                    className={`h-5 w-5 ${item.active ? "text-white" : ""}`}
+                  />
+                  <span className="font-medium">{item.name}</span>
+                  {item.comingSoon && (
+                    <span className="ml-auto text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+                      Soon
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Homes</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{homes.length}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Reports
-              </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+        <div className="absolute bottom-6 left-6 right-6">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/profile")}
+            className="w-full flex items-center justify-center gap-2 border-gray-200 hover:bg-gray-50"
+          >
+            <Settings className="h-4 w-4" />
+            Profile Settings
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+            <p className="text-gray-600">
+              Manage homes and create reports with ease
+            </p>
+          </div>
+
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                  <Building className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-gray-500 bg-blue-50 px-3 py-1 rounded-full">
+                  Total
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                {homes.length}
+              </div>
+              <div className="text-sm text-gray-600">Registered Homes</div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-gray-500 bg-green-50 px-3 py-1 rounded-full">
+                  Generated
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
                 {homes.reduce((sum, home) => sum + home.reportsCount, 0)}
               </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Visits Due</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-sm text-gray-600">Total Reports</div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-gray-500 bg-orange-50 px-3 py-1 rounded-full">
+                  Pending
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-orange-600 mb-1">
                 {visitsDueCount}
               </div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search homes by name or address..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white"
-            />
+              <div className="text-sm text-gray-600">Visits Due</div>
+            </div>
           </div>
-          <Select value={filterRegion} onValueChange={setFilterRegion}>
-            <SelectTrigger className="w-full sm:w-48 bg-white">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by region" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Regions</SelectItem>
-              {regions.map((region) => (
-                <SelectItem key={region} value={region}>
-                  {region}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-full sm:w-48 bg-white">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="children_home">Children's Homes</SelectItem>
-              <SelectItem value="supported_accommodation">
-                Supported Accommodation
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="whitespace-nowrap">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Home
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] bg-white">
-              <DialogHeader>
-                <DialogTitle>Add New Home</DialogTitle>
-                <DialogDescription>
-                  Add a new children's home or supported accommodation unit to
-                  your dashboard.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Home Name</Label>
-                  <Input
-                    id="name"
-                    value={newHome.name}
-                    onChange={(e) =>
-                      setNewHome({ ...newHome, name: e.target.value })
-                    }
-                    placeholder="Enter home name"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Type</Label>
-                  <Select
-                    value={newHome.type}
-                    onValueChange={(
-                      value: "children_home" | "supported_accommodation",
-                    ) => setNewHome({ ...newHome, type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="children_home">
-                        Children's Home
-                      </SelectItem>
-                      <SelectItem value="supported_accommodation">
-                        Supported Accommodation
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="region">Region</Label>
-                  <Input
-                    id="region"
-                    value={newHome.region}
-                    onChange={(e) =>
-                      setNewHome({ ...newHome, region: e.target.value })
-                    }
-                    placeholder="Enter region"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    value={newHome.address}
-                    onChange={(e) =>
-                      setNewHome({ ...newHome, address: e.target.value })
-                    }
-                    placeholder="Enter full address"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="capacity">Capacity</Label>
-                  <Input
-                    id="capacity"
-                    type="number"
-                    value={newHome.capacity}
-                    onChange={(e) =>
-                      setNewHome({
-                        ...newHome,
-                        capacity: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="Enter capacity"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" onClick={handleAddHome}>
+
+          {/* Search and Add */}
+          <div className="flex gap-4 mb-8">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Input
+                placeholder="Search homes by name or address..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-12 bg-white border-gray-200 rounded-xl shadow-sm focus:shadow-md transition-shadow"
+              />
+            </div>
+            <Select value={filterRegion} onValueChange={setFilterRegion}>
+              <SelectTrigger className="w-40 h-12 bg-white border-gray-200 rounded-xl shadow-sm">
+                <SelectValue placeholder="All Regions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Regions</SelectItem>
+                {regions.map((region) => (
+                  <SelectItem key={region} value={region}>
+                    {region}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="h-12 px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+                  <Plus className="h-5 w-5 mr-2" />
                   Add Home
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px] bg-white rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold text-gray-900">
+                    Add New Home
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600">
+                    Add a new children's home or supported accommodation to your
+                    dashboard.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Home Name</Label>
+                    <Input
+                      id="name"
+                      value={newHome.name}
+                      onChange={(e) =>
+                        setNewHome({ ...newHome, name: e.target.value })
+                      }
+                      placeholder="Enter home name"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="type">Type</Label>
+                    <Select
+                      value={newHome.type}
+                      onValueChange={(
+                        value: "children_home" | "supported_accommodation",
+                      ) => setNewHome({ ...newHome, type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="children_home">
+                          Children's Home
+                        </SelectItem>
+                        <SelectItem value="supported_accommodation">
+                          Supported Accommodation
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="region">Region</Label>
+                    <Input
+                      id="region"
+                      value={newHome.region}
+                      onChange={(e) =>
+                        setNewHome({ ...newHome, region: e.target.value })
+                      }
+                      placeholder="Enter region"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={newHome.address}
+                      onChange={(e) =>
+                        setNewHome({ ...newHome, address: e.target.value })
+                      }
+                      placeholder="Enter full address"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="capacity">Capacity</Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      value={newHome.capacity}
+                      onChange={(e) =>
+                        setNewHome({
+                          ...newHome,
+                          capacity: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="Enter capacity"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    onClick={handleAddHome}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl"
+                  >
+                    Add Home
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-        {/* Homes List */}
-        <div className="space-y-4">
-          {filteredHomes.map((home) => {
-            const visitStatus = getVisitStatus(home);
-            return (
-              <Card
-                key={home.id}
-                className="bg-white hover:shadow-lg transition-shadow cursor-pointer"
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
+          {/* Homes Grid */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Your Homes</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredHomes.map((home) => {
+                const visitStatus = getVisitStatus(home);
+                return (
+                  <div
+                    key={home.id}
+                    className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-gray-900 mb-2">
                             {home.name}
                           </h3>
-                          <div className="flex items-center text-sm text-gray-600 mt-1">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {home.region} • {getTypeLabel(home.type)}
+                          <div className="flex items-center text-sm text-gray-600 mb-3">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            {home.region}
+                          </div>
+                          <div className="text-xs text-gray-500 line-clamp-2">
+                            {home.address}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {visitStatus && (
-                            <Badge variant={visitStatus.color as any}>
-                              Visit {visitStatus.text}
-                            </Badge>
-                          )}
-                          {home.lastFormType && (
-                            <Badge variant="outline" className="text-xs">
-                              {home.lastFormType === "quick"
-                                ? "Quick Form Used"
-                                : "Full Form Used"}
-                            </Badge>
-                          )}
-                        </div>
+                        {visitStatus && (
+                          <Badge
+                            variant={visitStatus.color as any}
+                            className="text-xs font-medium px-3 py-1 rounded-full"
+                          >
+                            {visitStatus.text}
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Address:</span>
-                          <p className="font-medium truncate">{home.address}</p>
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-900">
+                            {home.capacity}
+                          </div>
+                          <div className="text-xs text-gray-500">Capacity</div>
                         </div>
-                        <div>
-                          <span className="text-gray-600">Capacity:</span>
-                          <p className="font-medium">
-                            {home.capacity} residents
-                          </p>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-900">
+                            {home.reportsCount}
+                          </div>
+                          <div className="text-xs text-gray-500">Reports</div>
                         </div>
-                        <div>
-                          <span className="text-gray-600">Reports:</span>
-                          <p className="font-medium">{home.reportsCount}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Last Report:</span>
-                          <p className="font-medium">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-900">
                             {home.lastReportDate
                               ? new Date(
                                   home.lastReportDate,
-                                ).toLocaleDateString()
-                              : "No reports"}
-                          </p>
+                                ).toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })
+                              : "None"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Last Visit
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center space-x-2 ml-6">
-                      <Button size="sm" variant="outline">
-                        <FileText className="h-4 w-4 mr-1" />
-                        Reports
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Schedule
-                      </Button>
                       <Button
-                        size="sm"
-                        className={
-                          visitStatus ? "bg-orange-600 hover:bg-orange-700" : ""
-                        }
+                        className={`w-full rounded-xl font-medium transition-all duration-200 ${
+                          visitStatus
+                            ? "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg"
+                            : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
+                        }`}
                         onClick={() =>
                           navigate(
                             `/report/new?homeName=${encodeURIComponent(home.name)}&homeAddress=${encodeURIComponent(home.address)}&homeId=${home.id}`,
                           )
                         }
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        New Visit
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Visit Report
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {filteredHomes.length === 0 && (
-          <div className="text-center py-12">
-            <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No homes found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || filterRegion !== "all" || filterType !== "all"
-                ? "Try adjusting your search or filters"
-                : "Get started by adding your first home"}
-            </p>
-            {!searchTerm && filterRegion === "all" && filterType === "all" && (
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Home
-              </Button>
-            )}
+                );
+              })}
+            </div>
           </div>
-        )}
+
+          {filteredHomes.length === 0 && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Building className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                No homes found
+              </h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                {searchTerm || filterRegion !== "all"
+                  ? "Try adjusting your search criteria or filters to find what you're looking for."
+                  : "Get started by adding your first home to begin creating reports and managing visits."}
+              </p>
+              {!searchTerm && filterRegion === "all" && (
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl px-8 py-3 shadow-lg"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add Your First Home
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

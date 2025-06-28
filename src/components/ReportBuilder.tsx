@@ -245,7 +245,8 @@ interface ReportData {
   homeAddress: string;
   visitDate: string;
   visitType: "announced" | "unannounced" | "";
-  settingType: "registered_childrens_home" | "unregistered_provision" | "";
+  purposeOfVisit: string;
+  settingType: "registered_childrens_home" | "welfare_monitoring_visit" | "";
   formType: "quick" | "";
   sections: ReportSection[];
   actions: Action[];
@@ -296,10 +297,9 @@ const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "protection_children", title: "Protection of Children (Reg 12)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
-  { id: "compliance", title: "Compliance & Concerns" },
 ];
 
-const UNREGISTERED_PROVISION_SECTIONS = [
+const WELFARE_MONITORING_VISIT_SECTIONS = [
   { id: "quality_care", title: "Quality & Purpose of Care" },
   { id: "welfare_safeguarding", title: "Welfare & Safeguarding" },
   { id: "policies_statement", title: "Policies & Statement of Purpose" },
@@ -479,8 +479,9 @@ const ReportBuilder = () => {
       searchParams.get("homeAddress") || "123 Oak Street, Manchester",
     visitDate: new Date().toISOString().split("T")[0],
     visitType: "",
-    settingType: "",
-    formType: "",
+    purposeOfVisit: "",
+    settingType: "registered_childrens_home",
+    formType: "quick",
     sections: REGISTERED_CHILDRENS_HOME_SECTIONS.map((section) => ({
       id: section.id,
       title: section.title,
@@ -599,7 +600,11 @@ const ReportBuilder = () => {
   const [showSettingTypeError, setShowSettingTypeError] = useState(false);
   const [formTypeError, setFormTypeError] = useState("");
   const [showFormTypeError, setShowFormTypeError] = useState(false);
-  const isFormUnlocked = reportData.settingType !== "" && reportData.formType !== "";
+  const [visitTypeError, setVisitTypeError] = useState("");
+  const [showVisitTypeError, setShowVisitTypeError] = useState(false);
+  const [purposeOfVisitError, setPurposeOfVisitError] = useState("");
+  const [showPurposeOfVisitError, setShowPurposeOfVisitError] = useState(false);
+  const isFormUnlocked = reportData.settingType !== "" && reportData.formType !== "" && reportData.visitType !== "" && reportData.purposeOfVisit !== "";
   const isFormSelectionComplete = reportData.formType !== "";
 
   // State for follow-up message generator
@@ -683,6 +688,13 @@ const ReportBuilder = () => {
         }
         if (!parsedData.reportData.formType || parsedData.reportData.formType === "full") {
           parsedData.reportData.formType = "quick"; // Default to quick form, convert full to quick
+        }
+        
+        // Remove any legacy 'compliance' sections from saved data
+        if (parsedData.reportData.sections) {
+          parsedData.reportData.sections = parsedData.reportData.sections.filter(
+            (section: any) => section.id !== "compliance"
+          );
         }
         // Ensure quick form fields exist for backward compatibility
         if (parsedData.reportData.safeguardingOpinion === undefined) {
@@ -899,8 +911,8 @@ const ReportBuilder = () => {
   }, [reportData, isOnline, saveToLocalStorage]);
 
   const handleSaveDraft = (isAutoSave = false) => {
-    // Prevent auto-save if form type or setting type is not selected
-    if ((!reportData.formType || !reportData.settingType) && isAutoSave) {
+    // Prevent auto-save if form type, setting type, visit type, or purpose of visit is not selected
+    if ((!reportData.formType || !reportData.settingType || !reportData.visitType || !reportData.purposeOfVisit) && isAutoSave) {
       return;
     }
 
@@ -921,6 +933,40 @@ const ReportBuilder = () => {
       );
       if (settingTypeElement) {
         settingTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
+    // Show error if trying to manually save without visit type
+    if (!reportData.visitType && !isAutoSave) {
+      setShowVisitTypeError(true);
+      setVisitTypeError("Please select a visit type before saving.");
+      // Scroll to visit type field
+      const visitTypeElement = document.querySelector(
+        "[data-visit-type-select]",
+      );
+      if (visitTypeElement) {
+        visitTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
+    // Show error if trying to manually save without purpose of visit
+    if (!reportData.purposeOfVisit && !isAutoSave) {
+      setShowPurposeOfVisitError(true);
+      setPurposeOfVisitError("Please select a purpose of visit before saving.");
+      // Scroll to purpose of visit field
+      const purposeOfVisitElement = document.querySelector(
+        "[data-purpose-of-visit-select]",
+      );
+      if (purposeOfVisitElement) {
+        purposeOfVisitElement.scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
@@ -1146,8 +1192,8 @@ const ReportBuilder = () => {
 
       // Build the comprehensive AI summary
       const reportTitle =
-        reportData.settingType === "unregistered_provision"
-          ? "Regulation 44-Style Assurance Review Report"
+        reportData.settingType === "welfare_monitoring_visit"
+          ? "Welfare Monitoring Visit Report"
           : "Regulation 44 Visit Report";
       let aiSummary = `# ${reportTitle}\n\n`;
 
@@ -1156,12 +1202,12 @@ const ReportBuilder = () => {
       aiSummary += `**Address:** ${reportData.homeAddress}\n`;
       aiSummary += `**Date of Visit:** ${new Date(reportData.visitDate).toLocaleDateString()}\n`;
       aiSummary += `**Type of Visit:** ${reportData.visitType ? reportData.visitType.charAt(0).toUpperCase() + reportData.visitType.slice(1) : "Not specified"}\n`;
-      aiSummary += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "unregistered_provision" ? "Regulation 44-Style Assurance Review – Unregistered Provision" : "Not specified"}\n\n`;
+      aiSummary += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "welfare_monitoring_visit" ? "Welfare Monitoring Visit" : "Not specified"}\n\n`;
 
       // Executive Summary
       aiSummary += `## Executive Summary\n\n`;
-      if (reportData.settingType === "unregistered_provision") {
-        aiSummary += `This report documents the findings from the Regulation 44-Style Assurance Review conducted at ${reportData.homeName}. `;
+      if (reportData.settingType === "welfare_monitoring_visit") {
+        aiSummary += `This report documents the findings from the Regulation 44-Style Welfare Monitoring Visit conducted at ${reportData.homeName}. `;
         aiSummary += `The ${reportData.visitType || "scheduled"} review assessed the provision's readiness for Ofsted registration and compliance with regulatory standards for the care and support of young people.\n\n`;
       } else {
         aiSummary += `This report documents the findings from the Regulation 44 visit conducted at ${reportData.homeName}. `;
@@ -1190,8 +1236,8 @@ const ReportBuilder = () => {
       // Overall Assessment
       aiSummary += `## Overall Assessment\n\n`;
       if (allSections.length > 0) {
-        if (reportData.settingType === "unregistered_provision") {
-          aiSummary += `Based on the observations and discussions during this assurance review, the following key areas have been identified for attention in preparation for Ofsted registration. `;
+        if (reportData.settingType === "welfare_monitoring_visit") {
+          aiSummary += `Based on the observations and discussions during this welfare monitoring visit, the following key areas have been identified for attention in preparation for Ofsted registration. `;
           if (childrenFeedbackForAI.length > 0) {
             aiSummary += `The voices of ${terminology.plural} have been captured and their feedback has been incorporated into this assessment. `;
           }
@@ -1204,7 +1250,7 @@ const ReportBuilder = () => {
           aiSummary += `The home demonstrates commitment to providing quality care, with specific recommendations outlined above to support continuous improvement.\n\n`;
         }
       } else {
-        if (reportData.settingType === "unregistered_provision") {
+        if (reportData.settingType === "welfare_monitoring_visit") {
           aiSummary += `This review focused on specific areas of regulatory compliance and readiness for registration. Detailed observations and recommendations are documented in the actions section above.\n\n`;
         } else {
           aiSummary += `This visit focused on specific areas of concern and compliance. Detailed observations and recommendations are documented in the actions section above.\n\n`;
@@ -1213,11 +1259,11 @@ const ReportBuilder = () => {
 
       // Next Steps
       aiSummary += `## Next Steps\n\n`;
-      if (reportData.settingType === "unregistered_provision") {
+      if (reportData.settingType === "welfare_monitoring_visit") {
         aiSummary += `- Implementation of recommendations within specified timeframes\n`;
         aiSummary += `- Follow-up monitoring of action items\n`;
         aiSummary += `- Preparation for Ofsted registration application\n`;
-        aiSummary += `- Schedule follow-up assurance review as required\n`;
+        aiSummary += `- Schedule follow-up welfare monitoring visit as required\n`;
         aiSummary += `- Ongoing communication with provision manager regarding progress towards registration\n\n`;
       } else {
         aiSummary += `- Implementation of recommendations within specified timeframes\n`;
@@ -1272,8 +1318,8 @@ const ReportBuilder = () => {
 
       // Build the AI-polished report
       const reportTitle =
-        reportData.settingType === "unregistered_provision"
-          ? "Regulation 44-Style Assurance Review Report"
+        reportData.settingType === "welfare_monitoring_visit"
+          ? "Welfare Monitoring Visit Report"
           : "Regulation 44 Visit Report";
       let polishedReport = `# ${reportTitle}\n\n`;
 
@@ -1282,12 +1328,12 @@ const ReportBuilder = () => {
       polishedReport += `**Address:** ${reportData.homeAddress}\n`;
       polishedReport += `**Date of Visit:** ${new Date(reportData.visitDate).toLocaleDateString()}\n`;
       polishedReport += `**Type of Visit:** ${reportData.visitType ? reportData.visitType.charAt(0).toUpperCase() + reportData.visitType.slice(1) : "Not specified"}\n`;
-      polishedReport += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "unregistered_provision" ? "Regulation 44-Style Assurance Review – Unregistered Provision" : "Not specified"}\n\n`;
+      polishedReport += `**Setting Type:** ${reportData.settingType === "registered_childrens_home" ? "Registered Children's Home" : reportData.settingType === "welfare_monitoring_visit" ? "Welfare Monitoring Visit" : "Not specified"}\n\n`;
 
       // Executive Summary
       polishedReport += `## Executive Summary\n\n`;
-      if (reportData.settingType === "unregistered_provision") {
-        polishedReport += `This comprehensive assurance review was conducted at ${reportData.homeName} to evaluate the provision's compliance with regulatory standards and readiness for Ofsted registration. The ${reportData.visitType || "scheduled"} review assessed key areas including safeguarding practices, environmental standards, staffing arrangements, and the quality of care provided to young people.\n\n`;
+      if (reportData.settingType === "welfare_monitoring_visit") {
+        polishedReport += `This comprehensive welfare monitoring visit was conducted at ${reportData.homeName} to evaluate the provision's compliance with regulatory standards and readiness for Ofsted registration. The ${reportData.visitType || "scheduled"} review assessed key areas including safeguarding practices, environmental standards, staffing arrangements, and the quality of care provided to young people.\n\n`;
       } else {
         polishedReport += `This Regulation 44 visit was conducted at ${reportData.homeName} to assess compliance with regulatory requirements and evaluate the quality of care provided to children and young people. The ${reportData.visitType || "scheduled"} visit examined key areas of practice and identified opportunities for continued improvement.\n\n`;
       }
@@ -1349,8 +1395,8 @@ const ReportBuilder = () => {
 
       // Overall Assessment
       polishedReport += `## Overall Assessment and Conclusion\n\n`;
-      if (reportData.settingType === "unregistered_provision") {
-        polishedReport += `This assurance review demonstrates the provision's commitment to achieving regulatory compliance and providing quality care for young people. The recommendations outlined above will support the setting in its preparation for Ofsted registration and ongoing development of best practice.\n\n`;
+      if (reportData.settingType === "welfare_monitoring_visit") {
+        polishedReport += `This welfare monitoring visit demonstrates the provision's commitment to achieving regulatory compliance and providing quality care for young people. The recommendations outlined above will support the setting in its preparation for Ofsted registration and ongoing development of best practice.\n\n`;
       } else {
         polishedReport += `This visit confirms the home's dedication to providing quality care and maintaining regulatory standards. The recommendations identified will support continued improvement and ensure the best possible outcomes for children and young people.\n\n`;
       }
@@ -1380,14 +1426,14 @@ const ReportBuilder = () => {
       );
 
       const childFriendlyTitle =
-        reportData.settingType === "unregistered_provision"
-          ? `What We Found During Our Assurance Review at ${reportData.homeName}`
+        reportData.settingType === "welfare_monitoring_visit"
+          ? `What We Found During Our Welfare Monitoring Visit at ${reportData.homeName}`
           : `What We Found During Our Visit to ${reportData.homeName}`;
       let childFriendlyText = `# ${childFriendlyTitle}\n\n`;
 
       const visitDescription =
-        reportData.settingType === "unregistered_provision"
-          ? `Hi everyone! We conducted an assurance review at your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to help prepare for official registration.`
+        reportData.settingType === "welfare_monitoring_visit"
+          ? `Hi everyone! We conducted an welfare monitoring visit at your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to help prepare for official registration.`
           : `Hi everyone! We visited your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to make sure you're getting the best care possible.`;
       childFriendlyText += `${visitDescription}\n\n`;
 
@@ -1463,6 +1509,44 @@ const ReportBuilder = () => {
       );
       if (settingTypeElement) {
         settingTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
+    // Prevent submission if visit type is not selected
+    if (!reportData.visitType) {
+      setShowVisitTypeError(true);
+      setVisitTypeError(
+        "Please select a visit type before submitting the report.",
+      );
+      // Scroll to visit type field
+      const visitTypeElement = document.querySelector(
+        "[data-visit-type-select]",
+      );
+      if (visitTypeElement) {
+        visitTypeElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return;
+    }
+
+    // Prevent submission if purpose of visit is not selected
+    if (!reportData.purposeOfVisit) {
+      setShowPurposeOfVisitError(true);
+      setPurposeOfVisitError(
+        "Please select a purpose of visit before submitting the report.",
+      );
+      // Scroll to purpose of visit field
+      const purposeOfVisitElement = document.querySelector(
+        "[data-purpose-of-visit-select]",
+      );
+      if (purposeOfVisitElement) {
+        purposeOfVisitElement.scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
@@ -1612,7 +1696,7 @@ const ReportBuilder = () => {
 
   // Determine terminology based on setting type
   const getChildTerminology = () => {
-    if (reportData.settingType === "unregistered_provision") {
+    if (reportData.settingType === "welfare_monitoring_visit") {
       return {
         singular: "young person",
         plural: "young people",
@@ -1642,12 +1726,12 @@ const ReportBuilder = () => {
 
   // Handle setting type change and update sections accordingly
   const handleSettingTypeChange = (
-    settingType: "registered_childrens_home" | "unregistered_provision",
+    settingType: "registered_childrens_home" | "welfare_monitoring_visit",
   ) => {
     const newSections =
       settingType === "registered_childrens_home"
         ? REGISTERED_CHILDRENS_HOME_SECTIONS
-        : UNREGISTERED_PROVISION_SECTIONS;
+        : WELFARE_MONITORING_VISIT_SECTIONS;
 
     // Preserve existing content where sections match
     const updatedSections = newSections.map((newSection) => {
@@ -1692,6 +1776,14 @@ const ReportBuilder = () => {
     // Clear any form type errors
     setShowFormTypeError(false);
     setFormTypeError("");
+    
+    // Clear any visit type errors
+    setShowVisitTypeError(false);
+    setVisitTypeError("");
+    
+    // Clear any purpose of visit errors
+    setShowPurposeOfVisitError(false);
+    setPurposeOfVisitError("");
 
     // Auto-scroll to the next section after selection
     setTimeout(() => {
@@ -1876,8 +1968,8 @@ Kind regards,
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
     const reportTitle =
-      reportData.settingType === "unregistered_provision"
-        ? "AI-Enhanced Regulation 44-Style Assurance Review Report"
+      reportData.settingType === "welfare_monitoring_visit"
+        ? "AI-Enhanced Regulation 44-Style Welfare Monitoring Visit Report"
         : "AI-Enhanced Regulation 44 Visit Report";
     pdf.text(reportTitle, margin, yPosition);
     yPosition += 15;
@@ -1948,8 +2040,8 @@ Kind regards,
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
     const childFriendlyTitle =
-      reportData.settingType === "unregistered_provision"
-        ? "What We Found During Our Assurance Review"
+      reportData.settingType === "welfare_monitoring_visit"
+        ? "What We Found During Our Welfare Monitoring Visit"
         : "Child-Friendly Visit Summary";
     pdf.text(childFriendlyTitle, margin, yPosition);
     yPosition += 15;
@@ -2020,8 +2112,8 @@ Kind regards,
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
     const reportTitle =
-      reportData.settingType === "unregistered_provision"
-        ? "Regulation 44-Style Assurance Review Report"
+      reportData.settingType === "welfare_monitoring_visit"
+        ? "Welfare Monitoring Visit Report"
         : "Regulation 44 Visit Report";
     pdf.text(reportTitle, margin, yPosition);
     yPosition += 15;
@@ -2379,8 +2471,8 @@ Continue with Report Form
         <CardHeader>
           <CardTitle className="flex items-center">
             <Eye className="h-5 w-5 mr-2" />
-            {reportData.settingType === "unregistered_provision"
-              ? "Assurance Review Report"
+            {reportData.settingType === "welfare_monitoring_visit"
+              ? "Welfare Monitoring Visit Report"
               : "Report Review"}{" "}
             - {reportData.homeName}
           </CardTitle>
@@ -2405,20 +2497,23 @@ Continue with Report Form
                   {new Date(reportData.visitDate).toLocaleDateString()}
                 </p>
               </div>
-              <div>
+              <div data-visit-type-select>
                 <Label className="text-sm font-medium text-gray-600">
                   Visit Type *
                 </Label>
                 <Select
                   value={reportData.visitType}
-                  onValueChange={(value: "announced" | "unannounced") =>
+                  onValueChange={(value: "announced" | "unannounced") => {
                     setReportData((prev) => ({
                       ...prev,
                       visitType: value,
-                    }))
-                  }
+                    }));
+                    // Clear any visit type errors when selection is made
+                    setShowVisitTypeError(false);
+                    setVisitTypeError("");
+                  }}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger className={`mt-2 ${showVisitTypeError && !reportData.visitType ? "border-red-500 ring-1 ring-red-500" : ""}`}>
                     <SelectValue placeholder="Select visit type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2426,6 +2521,57 @@ Continue with Report Form
                     <SelectItem value="unannounced">Unannounced</SelectItem>
                   </SelectContent>
                 </Select>
+                {!reportData.visitType && (
+                  <p
+                    className={`text-sm mt-2 ${showVisitTypeError ? "text-red-600" : "text-gray-500"}`}
+                  >
+                    {showVisitTypeError
+                      ? visitTypeError
+                      : "Please select a visit type to continue completing this report."}
+                  </p>
+                )}
+              </div>
+
+              <div data-purpose-of-visit-select>
+                <Label className="text-sm font-medium text-gray-600">
+                  Purpose of Visit *
+                </Label>
+                <Select
+                  value={reportData.purposeOfVisit}
+                  onValueChange={(value: string) => {
+                    setReportData((prev) => ({
+                      ...prev,
+                      purposeOfVisit: value,
+                    }));
+                    // Clear any purpose of visit errors when selection is made
+                    setShowPurposeOfVisitError(false);
+                    setPurposeOfVisitError("");
+                  }}
+                >
+                  <SelectTrigger className={`mt-2 ${showPurposeOfVisitError && !reportData.purposeOfVisit ? "border-red-500 ring-1 ring-red-500" : ""}`}>
+                    <SelectValue placeholder="Select purpose of visit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="routine-monthly-regulation-44">Routine Monthly Visit (Regulation 44)</SelectItem>
+                    <SelectItem value="welfare-monitoring-supported-accommodation">Welfare Monitoring – Supported Accommodation (16+)</SelectItem>
+                    <SelectItem value="welfare-monitoring-emergency-temporary">Welfare Monitoring – Emergency or Temporary Accommodation</SelectItem>
+                    <SelectItem value="welfare-monitoring-out-of-area">Welfare Monitoring – Out-of-Area Placement</SelectItem>
+                    <SelectItem value="pre-placement-visit">Pre-Placement Visit</SelectItem>
+                    <SelectItem value="follow-up-visit">Follow-Up Visit</SelectItem>
+                    <SelectItem value="safeguarding-welfare-concern">Safeguarding or Welfare Concern</SelectItem>
+                    <SelectItem value="visit-commissioned-by-la-provider">Visit Commissioned by Local Authority or Provider</SelectItem>
+                    <SelectItem value="transition-placement-ending">Transition Visit or Placement Ending Review</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!reportData.purposeOfVisit && (
+                  <p
+                    className={`text-sm mt-2 ${showPurposeOfVisitError ? "text-red-600" : "text-gray-500"}`}
+                  >
+                    {showPurposeOfVisitError
+                      ? purposeOfVisitError
+                      : "Please select a purpose of visit to continue completing this report."}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2848,8 +2994,8 @@ Back to Dashboard
 
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  {reportData.settingType === "unregistered_provision"
-                    ? "Regulation 44-Style Assurance Review"
+                  {reportData.settingType === "welfare_monitoring_visit"
+                    ? "Welfare Monitoring Visit"
                     : "Regulation 44 Report"}{" "}
                   – {reportData.homeName}
                   {reportData.formType && (
@@ -3018,7 +3164,7 @@ Back to Dashboard
                   onValueChange={(
                     value:
                       | "registered_childrens_home"
-                      | "unregistered_provision",
+                      | "welfare_monitoring_visit",
                   ) => handleSettingTypeChange(value)}
                 >
                   <SelectTrigger
@@ -3028,11 +3174,10 @@ Back to Dashboard
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="registered_childrens_home">
-                      Registered Children's Home
+                      registered children's home
                     </SelectItem>
-                    <SelectItem value="unregistered_provision">
-                      Regulation 44-Style Assurance Review – Unregistered
-                      Provision
+                    <SelectItem value="welfare_monitoring_visit">
+                      Welfare Monitoring Visit
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -3068,6 +3213,48 @@ Back to Dashboard
                     <SelectItem value="unannounced">Unannounced</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div data-purpose-of-visit-select>
+                <Label className="text-sm font-medium text-gray-600">
+                  Purpose of Visit *
+                </Label>
+                <Select
+                  value={reportData.purposeOfVisit}
+                  onValueChange={(value: string) => {
+                    setReportData((prev) => ({
+                      ...prev,
+                      purposeOfVisit: value,
+                    }));
+                    // Clear any purpose of visit errors when selection is made
+                    setShowPurposeOfVisitError(false);
+                    setPurposeOfVisitError("");
+                  }}
+                >
+                  <SelectTrigger className={`mt-2 ${showPurposeOfVisitError && !reportData.purposeOfVisit ? "border-red-500 ring-1 ring-red-500" : ""}`}>
+                    <SelectValue placeholder="Select purpose of visit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="routine-monthly-regulation-44">Routine Monthly Visit (Regulation 44)</SelectItem>
+                    <SelectItem value="welfare-monitoring-supported-accommodation">Welfare Monitoring – Supported Accommodation (16+)</SelectItem>
+                    <SelectItem value="welfare-monitoring-emergency-temporary">Welfare Monitoring – Emergency or Temporary Accommodation</SelectItem>
+                    <SelectItem value="welfare-monitoring-out-of-area">Welfare Monitoring – Out-of-Area Placement</SelectItem>
+                    <SelectItem value="pre-placement-visit">Pre-Placement Visit</SelectItem>
+                    <SelectItem value="follow-up-visit">Follow-Up Visit</SelectItem>
+                    <SelectItem value="safeguarding-welfare-concern">Safeguarding or Welfare Concern</SelectItem>
+                    <SelectItem value="visit-commissioned-by-la-provider">Visit Commissioned by Local Authority or Provider</SelectItem>
+                    <SelectItem value="transition-placement-ending">Transition Visit or Placement Ending Review</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!reportData.purposeOfVisit && (
+                  <p
+                    className={`text-sm mt-2 ${showPurposeOfVisitError ? "text-red-600" : "text-gray-500"}`}
+                  >
+                    {showPurposeOfVisitError
+                      ? purposeOfVisitError
+                      : "Please select a purpose of visit to continue completing this report."}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -3275,7 +3462,7 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select a setting type above to unlock this section
+                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
@@ -6316,7 +6503,7 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select a setting type above to unlock this section
+                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
@@ -6543,7 +6730,7 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select a setting type above to unlock this section
+                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
@@ -6594,8 +6781,8 @@ Back to Dashboard
                       {/* Report Header */}
                       <div className="border-b pb-4">
                         <h2 className="text-xl font-bold mb-2">
-                          {reportData.settingType === "unregistered_provision"
-                            ? "Regulation 44-Style Assurance Review Report"
+                          {reportData.settingType === "welfare_monitoring_visit"
+                            ? "Welfare Monitoring Visit Report"
                             : "Regulation 44 Visit Report"}
                         </h2>
                         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -6647,44 +6834,7 @@ Back to Dashboard
                           </div>
                         ))}
 
-                      {/* Actions Section */}
-                      {reportData.actions.length > 0 && (
-                        <div className="border-b pb-4">
-                          <h3 className="font-semibold text-lg mb-2">
-                            Actions & Recommendations
-                          </h3>
-                          <div className="space-y-2">
-                            {reportData.actions.map((action, index) => (
-                              <div
-                                key={action.id}
-                                className="p-3 bg-white rounded border"
-                              >
-                                <p className="font-medium">
-                                  {index + 1}. {action.description}
-                                </p>
-                                <div className="text-sm text-gray-600 mt-1">
-                                  <span>
-                                    Responsible: {action.responsiblePerson}
-                                  </span>{" "}
-                                  |
-                                  <span>
-                                    {" "}
-                                    Deadline:{" "}
-                                    {new Date(
-                                      action.deadline,
-                                    ).toLocaleDateString()}
-                                  </span>{" "}
-                                  |
-                                  <span>
-                                    {" "}
-                                    Status: {action.status.replace("-", " ")}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+
 
                       {/* Recommendations Summary */}
                       {reportData.recommendationsSummary && (
