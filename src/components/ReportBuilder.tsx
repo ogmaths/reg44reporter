@@ -222,6 +222,24 @@ interface LeadershipManagementData {
   improvementAreas: boolean;
 }
 
+interface ProtectionChildrenData {
+  safeguardingChecklist: {
+    policiesInPlace: boolean;
+    staffUnderstanding: boolean;
+    risksIdentified: boolean;
+    childrenFeelSafe: boolean;
+    incidentLogsUpToDate: boolean;
+    physicalInterventionsReviewed: boolean;
+    complaintsHandled: boolean;
+    missingEventsFollowedUp: boolean;
+    onlineSafetyPromoted: boolean;
+    externalAgenciesEngaged: boolean;
+    safetyConcernsEscalated: boolean;
+  };
+  safeguardingSummary: string;
+  overallAssessment: "fully-meets" | "partially-meets" | "does-not-meet" | "";
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
@@ -249,6 +267,7 @@ interface ReportData {
   carePlanningData: CarePlanningData;
   leadershipManagementData: LeadershipManagementData;
   followUpData: FollowUpData;
+  protectionChildrenData: ProtectionChildrenData;
 }
 
 interface ReportVersion {
@@ -274,6 +293,7 @@ const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
   { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
+  { id: "protection_children", title: "Protection of Children (Reg 12)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
   { id: "compliance", title: "Compliance & Concerns" },
@@ -292,6 +312,7 @@ const UNREGISTERED_PROVISION_SECTIONS = [
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
   { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
+  { id: "protection_children", title: "Protection of Children (Reg 12)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
   { id: "leadership_oversight", title: "Leadership & Oversight" },
@@ -554,6 +575,23 @@ const ReportBuilder = () => {
     followUpData: {
       actions: [],
     },
+    protectionChildrenData: {
+      safeguardingChecklist: {
+        policiesInPlace: false,
+        staffUnderstanding: false,
+        risksIdentified: false,
+        childrenFeelSafe: false,
+        incidentLogsUpToDate: false,
+        physicalInterventionsReviewed: false,
+        complaintsHandled: false,
+        missingEventsFollowedUp: false,
+        onlineSafetyPromoted: false,
+        externalAgenciesEngaged: false,
+        safetyConcernsEscalated: false,
+      },
+      safeguardingSummary: "",
+      overallAssessment: "",
+    },
   });
 
   // State for form validation and unlocking
@@ -761,6 +799,26 @@ const ReportBuilder = () => {
         if (!parsedData.reportData.followUpData) {
           parsedData.reportData.followUpData = {
             actions: [],
+          };
+        }
+        // Ensure protectionChildrenData exists for backward compatibility
+        if (!parsedData.reportData.protectionChildrenData) {
+          parsedData.reportData.protectionChildrenData = {
+            safeguardingChecklist: {
+              policiesInPlace: false,
+              staffUnderstanding: false,
+              risksIdentified: false,
+              childrenFeelSafe: false,
+              incidentLogsUpToDate: false,
+              physicalInterventionsReviewed: false,
+              complaintsHandled: false,
+              missingEventsFollowedUp: false,
+              onlineSafetyPromoted: false,
+              externalAgenciesEngaged: false,
+              safetyConcernsEscalated: false,
+            },
+            safeguardingSummary: "",
+            overallAssessment: "",
           };
         }
         setReportData(parsedData.reportData);
@@ -5133,6 +5191,384 @@ Back to Dashboard
                             />
                           </div>
                         </div>
+                      ) : section.id === "protection_children" ? (
+                        /* Protection of Children (Reg 12) Section */
+                        <div className="space-y-6">
+                          {/* Safeguarding Checklist */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              1. Safeguarding Checklist
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Tick all that apply. Use this to drive your written summary below.
+                            </p>
+                            <div className="space-y-3">
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="policies-in-place"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.policiesInPlace}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          policiesInPlace: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="policies-in-place" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Safeguarding policies are in place and accessible
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.policiesInPlace && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="staff-understanding"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.staffUnderstanding}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          staffUnderstanding: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="staff-understanding" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Staff demonstrate understanding of safeguarding duties
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.staffUnderstanding && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="risks-identified"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.risksIdentified}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          risksIdentified: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="risks-identified" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Risks to children are identified and regularly reviewed
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.risksIdentified && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="children-feel-safe"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.childrenFeelSafe}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          childrenFeelSafe: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="children-feel-safe" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Children report feeling safe in the home
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.childrenFeelSafe && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="incident-logs-up-to-date"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.incidentLogsUpToDate}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          incidentLogsUpToDate: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="incident-logs-up-to-date" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Incident logs are up-to-date and show timely response
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.incidentLogsUpToDate && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="physical-interventions-reviewed"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.physicalInterventionsReviewed}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          physicalInterventionsReviewed: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="physical-interventions-reviewed" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Physical interventions are proportionate and reviewed
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.physicalInterventionsReviewed && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="complaints-handled"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.complaintsHandled}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          complaintsHandled: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="complaints-handled" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Complaints and allegations are responded to appropriately
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.complaintsHandled && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="missing-events-followed-up"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.missingEventsFollowedUp}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          missingEventsFollowedUp: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="missing-events-followed-up" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Absence/missing from home events are followed up well
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.missingEventsFollowedUp && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="online-safety-promoted"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.onlineSafetyPromoted}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          onlineSafetyPromoted: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="online-safety-promoted" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Online safety is promoted and supported
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.onlineSafetyPromoted && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="external-agencies-engaged"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.externalAgenciesEngaged}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          externalAgenciesEngaged: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="external-agencies-engaged" className="text-sm font-medium flex-1 cursor-pointer">
+                                  External agencies are engaged where necessary (e.g. LADO)
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.externalAgenciesEngaged && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                                <Checkbox
+                                  id="safety-concerns-escalated"
+                                  checked={reportData.protectionChildrenData.safeguardingChecklist.safetyConcernsEscalated}
+                                  onCheckedChange={(checked) =>
+                                    setReportData((prev) => ({
+                                      ...prev,
+                                      protectionChildrenData: {
+                                        ...prev.protectionChildrenData,
+                                        safeguardingChecklist: {
+                                          ...prev.protectionChildrenData.safeguardingChecklist,
+                                          safetyConcernsEscalated: !!checked,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                                <Label htmlFor="safety-concerns-escalated" className="text-sm font-medium flex-1 cursor-pointer">
+                                  Safety concerns are escalated and actions are recorded
+                                </Label>
+                                {reportData.protectionChildrenData.safeguardingChecklist.safetyConcernsEscalated && (
+                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Checklist Summary */}
+                            {Object.values(reportData.protectionChildrenData.safeguardingChecklist).some(Boolean) && (
+                              <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800 mb-2">
+                                  Checklist Progress: {Object.values(reportData.protectionChildrenData.safeguardingChecklist).filter(Boolean).length} of {Object.keys(reportData.protectionChildrenData.safeguardingChecklist).length} items completed
+                                </p>
+                                <div className="w-full bg-green-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-green-600 h-2 rounded-full" 
+                                    style={{ 
+                                      width: `${(Object.values(reportData.protectionChildrenData.safeguardingChecklist).filter(Boolean).length / Object.keys(reportData.protectionChildrenData.safeguardingChecklist).length) * 100}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Summary of Safeguarding Practice */}
+                          <div>
+                            <Label htmlFor="safeguarding-summary" className="text-base font-medium">
+                              2. Summary of Safeguarding Practice
+                            </Label>
+                            <p className="text-sm text-gray-600 mt-1 mb-3">
+                              Text area – draw from the checklist and your observations
+                            </p>
+                            <Textarea
+                              id="safeguarding-summary"
+                              value={reportData.protectionChildrenData.safeguardingSummary}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  protectionChildrenData: {
+                                    ...prev.protectionChildrenData,
+                                    safeguardingSummary: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="E.g., &quot;Safeguarding practices appear robust. Logs show clear actions, children feel safe, and staff can explain reporting pathways. Some delays in updating risk assessments were noted.&quot;"
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Overall Assessment */}
+                          <div>
+                            <Label htmlFor="overall-assessment" className="text-base font-medium">
+                              3. Overall Assessment
+                            </Label>
+                            <Select
+                              value={reportData.protectionChildrenData.overallAssessment}
+                              onValueChange={(value: "fully-meets" | "partially-meets" | "does-not-meet") =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  protectionChildrenData: {
+                                    ...prev.protectionChildrenData,
+                                    overallAssessment: value,
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="mt-2">
+                                <SelectValue placeholder="Select overall assessment" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="fully-meets">Fully meets</SelectItem>
+                                <SelectItem value="partially-meets">Partially meets</SelectItem>
+                                <SelectItem value="does-not-meet">Does not meet</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about protection of children, safeguarding practices, or concerns..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
                       ) : section.id === "leadership_management" ? (
                         /* Leadership & Management (Reg 13) Section */
                         <div className="space-y-6">
@@ -6096,25 +6532,7 @@ Back to Dashboard
                 )}
               </div>
 
-              {/* Information Note */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Regulation 44.4 Compliance</p>
-                    <p>
-                      These responses fulfill the legal requirements for Independent Person reports under Regulation 44.4. 
-                      The data will be mapped to the following PDF fields:
-                    </p>
-                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
-                      <li><strong>IP_SafeguardingOpinion:</strong> Safeguarding response</li>
-                      <li><strong>IP_SafeguardingExplanation:</strong> Safeguarding explanation (if applicable)</li>
-                      <li><strong>IP_WellbeingOpinion:</strong> Wellbeing response</li>
-                      <li><strong>IP_WellbeingExplanation:</strong> Wellbeing explanation (if applicable)</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
+
             </CardContent>
           </Card>
 
