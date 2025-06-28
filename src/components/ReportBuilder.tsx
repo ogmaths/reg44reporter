@@ -203,6 +203,25 @@ interface CarePlanningData {
   generalComments: string;
 }
 
+interface FollowUpAction {
+  id: string;
+  description: string;
+  status: "not-started" | "in-progress" | "completed" | "delayed";
+  notes: string;
+  originalDeadline: string;
+  responsiblePerson: string;
+}
+
+interface FollowUpData {
+  actions: FollowUpAction[];
+}
+
+interface LeadershipManagementData {
+  managerImpact: string;
+  staffStrengthsNeeds: string[];
+  improvementAreas: boolean;
+}
+
 interface ReportData {
   homeName: string;
   homeAddress: string;
@@ -228,6 +247,8 @@ interface ReportData {
   healthWellbeingData: HealthWellbeingData;
   positiveRelationshipsData: PositiveRelationshipsData;
   carePlanningData: CarePlanningData;
+  leadershipManagementData: LeadershipManagementData;
+  followUpData: FollowUpData;
 }
 
 interface ReportVersion {
@@ -248,11 +269,13 @@ const REGISTERED_CHILDRENS_HOME_SECTIONS = [
   { id: "environment", title: "Observations of the Environment" },
   { id: "staff", title: "Staff & Management Discussion" },
   { id: "records", title: "Records Reviewed" },
+  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
   { id: "education", title: "Education (Reg 8)" },
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
   { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
+  { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
   { id: "compliance", title: "Compliance & Concerns" },
 ];
 
@@ -264,11 +287,13 @@ const UNREGISTERED_PROVISION_SECTIONS = [
   { id: "staffing_training", title: "Staffing & Training" },
   { id: "support_young_person", title: "Support for the Young Person" },
   { id: "records_documentation", title: "Records & Documentation" },
+  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
   { id: "education", title: "Education (Reg 8)" },
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
   { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
+  { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
   { id: "leadership_oversight", title: "Leadership & Oversight" },
   { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
 ];
@@ -319,6 +344,21 @@ const CARE_PLANNING_NEEDS_AREAS = [
   "Life Skills",
   "Emotional Support",
   "Cultural Needs",
+];
+
+const STAFF_STRENGTHS_NEEDS_OPTIONS = [
+  "Communication Skills",
+  "Safeguarding Knowledge",
+  "Behaviour Management",
+  "Therapeutic Approaches",
+  "Record Keeping",
+  "Professional Development",
+  "Team Working",
+  "Cultural Awareness",
+  "Mental Health Support",
+  "Educational Support",
+  "Life Skills Teaching",
+  "Crisis Management",
 ];
 
 const REGISTERED_HOME_DOCUMENTS = [
@@ -505,6 +545,14 @@ const ReportBuilder = () => {
       identityComments: "",
       independenceComments: "",
       generalComments: "",
+    },
+    leadershipManagementData: {
+      managerImpact: "",
+      staffStrengthsNeeds: [],
+      improvementAreas: false,
+    },
+    followUpData: {
+      actions: [],
     },
   });
 
@@ -699,6 +747,20 @@ const ReportBuilder = () => {
             identityComments: "",
             independenceComments: "",
             generalComments: "",
+          };
+        }
+        // Ensure leadershipManagementData exists for backward compatibility
+        if (!parsedData.reportData.leadershipManagementData) {
+          parsedData.reportData.leadershipManagementData = {
+            managerImpact: "",
+            staffStrengthsNeeds: [],
+            improvementAreas: false,
+          };
+        }
+        // Ensure followUpData exists for backward compatibility
+        if (!parsedData.reportData.followUpData) {
+          parsedData.reportData.followUpData = {
+            actions: [],
           };
         }
         setReportData(parsedData.reportData);
@@ -4545,6 +4607,665 @@ Back to Dashboard
                                 )
                               }
                               placeholder="Any additional observations about relationships in the home, including peer relationships, staff-young person relationships, or family contact arrangements..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "care_planning" ? (
+                        /* Care Planning (Reg 14) Section */
+                        <div className="space-y-6">
+                          {/* Plan Progress Dropdown */}
+                          <div>
+                            <Label htmlFor="plan-progress">Care Plan Progress</Label>
+                            <Select
+                              value={reportData.carePlanningData.planProgress}
+                              onValueChange={(value) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  carePlanningData: {
+                                    ...prev.carePlanningData,
+                                    planProgress: value,
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select care plan progress" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="excellent">Excellent - All objectives being met</SelectItem>
+                                <SelectItem value="good">Good - Most objectives being met</SelectItem>
+                                <SelectItem value="satisfactory">Satisfactory - Some objectives being met</SelectItem>
+                                <SelectItem value="requires-improvement">Requires Improvement - Few objectives being met</SelectItem>
+                                <SelectItem value="poor">Poor - Objectives not being met</SelectItem>
+                                <SelectItem value="not-applicable">Not Applicable</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Multi-select Needs Areas */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Needs Areas Being Addressed
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Select all areas where the young person's needs are being actively addressed in their care plan.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {CARE_PLANNING_NEEDS_AREAS.map((area) => (
+                                <div
+                                  key={area}
+                                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                                >
+                                  <Checkbox
+                                    id={`needs-area-${area.replace(/\s+/g, '-').toLowerCase()}`}
+                                    checked={reportData.carePlanningData.needsAreas.includes(area)}
+                                    onCheckedChange={(checked) => {
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        carePlanningData: {
+                                          ...prev.carePlanningData,
+                                          needsAreas: checked
+                                            ? [...prev.carePlanningData.needsAreas, area]
+                                            : prev.carePlanningData.needsAreas.filter(n => n !== area),
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`needs-area-${area.replace(/\s+/g, '-').toLowerCase()}`}
+                                    className="text-sm font-medium flex-1 cursor-pointer"
+                                  >
+                                    {area}
+                                  </Label>
+                                  {reportData.carePlanningData.needsAreas.includes(area) && (
+                                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {reportData.carePlanningData.needsAreas.length > 0 && (
+                              <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800 mb-2">
+                                  Selected Areas ({reportData.carePlanningData.needsAreas.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {reportData.carePlanningData.needsAreas.map((area) => (
+                                    <Badge key={area} variant="secondary" className="text-xs">
+                                      {area}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Conditional Comment Boxes */}
+                          {reportData.carePlanningData.needsAreas.includes("Identity") && (
+                            <div>
+                              <Label htmlFor="identity-comments">Identity Development Comments</Label>
+                              <Textarea
+                                id="identity-comments"
+                                value={reportData.carePlanningData.identityComments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    carePlanningData: {
+                                      ...prev.carePlanningData,
+                                      identityComments: e.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Describe how the young person's identity development needs are being addressed, including cultural identity, personal values, and sense of self..."
+                                className="mt-1 min-h-[100px]"
+                              />
+                            </div>
+                          )}
+
+                          {reportData.carePlanningData.needsAreas.includes("Independence") && (
+                            <div>
+                              <Label htmlFor="independence-comments">Independence Development Comments</Label>
+                              <Textarea
+                                id="independence-comments"
+                                value={reportData.carePlanningData.independenceComments}
+                                onChange={(e) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    carePlanningData: {
+                                      ...prev.carePlanningData,
+                                      independenceComments: e.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Describe how the young person's independence skills are being developed, including life skills, decision-making, and preparation for adulthood..."
+                                className="mt-1 min-h-[100px]"
+                              />
+                            </div>
+                          )}
+
+                          {/* General Comments */}
+                          <div>
+                            <Label htmlFor="care-planning-general-comments">General Care Planning Comments</Label>
+                            <Textarea
+                              id="care-planning-general-comments"
+                              value={reportData.carePlanningData.generalComments}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  carePlanningData: {
+                                    ...prev.carePlanningData,
+                                    generalComments: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Provide general observations about care planning, including the quality of plans, review processes, young person involvement, and overall effectiveness..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about care planning processes, documentation, or outcomes..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "follow_up_previous" ? (
+                        /* Follow-Up from Previous Visit Section - Enhanced */
+                        <div className="space-y-6">
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Follow-Up Actions from Previous Visit
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Load and track the progress of actions and recommendations from your previous visit. Edit existing actions and add new ones as needed.
+                            </p>
+                            
+                            {/* Load Previous Actions Button */}
+                            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-start space-x-3">
+                                <Target className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-blue-900 mb-2">
+                                    Load Previous Actions
+                                  </h4>
+                                  <p className="text-sm text-blue-800 mb-3">
+                                    Actions from previous visits for this home are automatically loaded. You can edit their status and add progress notes.
+                                  </p>
+                                  <Button
+                                    onClick={() => {
+                                      const homeId = searchParams.get("homeId") || "sample-home";
+                                      const savedActions = localStorage.getItem(`actions-${homeId}`);
+                                      if (savedActions) {
+                                        const actions: Action[] = JSON.parse(savedActions);
+                                        const followUpActions: FollowUpAction[] = actions.map(action => ({
+                                          id: `followup-${action.id}`,
+                                          description: action.description,
+                                          status: action.status === "completed" ? "completed" : action.status === "in-progress" ? "in-progress" : "not-started",
+                                          notes: action.progressUpdate || "",
+                                          originalDeadline: action.deadline,
+                                          responsiblePerson: action.responsiblePerson,
+                                        }));
+                                        setReportData((prev) => ({
+                                          ...prev,
+                                          followUpData: {
+                                            ...prev.followUpData,
+                                            actions: [...prev.followUpData.actions, ...followUpActions.filter(fa => 
+                                              !prev.followUpData.actions.some(existing => existing.description === fa.description)
+                                            )],
+                                          },
+                                        }));
+                                        toast({
+                                          title: "Previous Actions Loaded",
+                                          description: `${followUpActions.length} actions loaded from previous visits.`,
+                                          duration: 3000,
+                                        });
+                                      } else {
+                                        toast({
+                                          title: "No Previous Actions Found",
+                                          description: "No previous actions found for this home.",
+                                          duration: 3000,
+                                        });
+                                      }
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Load Previous Actions
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Existing Follow-Up Actions */}
+                            {reportData.followUpData.actions.length > 0 && (
+                              <div className="space-y-4 mb-6">
+                                <h4 className="font-medium text-lg border-b pb-2">
+                                  Previous Actions ({reportData.followUpData.actions.length})
+                                </h4>
+                                <div className="border rounded-lg overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="w-[30%]">Action Description</TableHead>
+                                        <TableHead className="w-[15%]">Responsible Person</TableHead>
+                                        <TableHead className="w-[12%]">Original Deadline</TableHead>
+                                        <TableHead className="w-[12%]">Status</TableHead>
+                                        <TableHead className="w-[25%]">Progress Notes</TableHead>
+                                        <TableHead className="w-[6%]">Actions</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {reportData.followUpData.actions.map((action) => (
+                                        <TableRow key={action.id}>
+                                          <TableCell>
+                                            <Textarea
+                                              value={action.description}
+                                              onChange={(e) => {
+                                                setReportData((prev) => ({
+                                                  ...prev,
+                                                  followUpData: {
+                                                    ...prev.followUpData,
+                                                    actions: prev.followUpData.actions.map((a) =>
+                                                      a.id === action.id ? { ...a, description: e.target.value } : a
+                                                    ),
+                                                  },
+                                                }));
+                                              }}
+                                              placeholder="Action description..."
+                                              className="min-h-[60px] resize-none"
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={action.responsiblePerson}
+                                              onChange={(e) => {
+                                                setReportData((prev) => ({
+                                                  ...prev,
+                                                  followUpData: {
+                                                    ...prev.followUpData,
+                                                    actions: prev.followUpData.actions.map((a) =>
+                                                      a.id === action.id ? { ...a, responsiblePerson: e.target.value } : a
+                                                    ),
+                                                  },
+                                                }));
+                                              }}
+                                              placeholder="Responsible person..."
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              type="date"
+                                              value={action.originalDeadline}
+                                              onChange={(e) => {
+                                                setReportData((prev) => ({
+                                                  ...prev,
+                                                  followUpData: {
+                                                    ...prev.followUpData,
+                                                    actions: prev.followUpData.actions.map((a) =>
+                                                      a.id === action.id ? { ...a, originalDeadline: e.target.value } : a
+                                                    ),
+                                                  },
+                                                }));
+                                              }}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Select
+                                              value={action.status}
+                                              onValueChange={(value: "not-started" | "in-progress" | "completed" | "delayed") => {
+                                                setReportData((prev) => ({
+                                                  ...prev,
+                                                  followUpData: {
+                                                    ...prev.followUpData,
+                                                    actions: prev.followUpData.actions.map((a) =>
+                                                      a.id === action.id ? { ...a, status: value } : a
+                                                    ),
+                                                  },
+                                                }));
+                                              }}
+                                            >
+                                              <SelectTrigger>
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="not-started">
+                                                  <div className="flex items-center">
+                                                    <AlertCircle className="h-4 w-4 mr-2 text-gray-500" />
+                                                    Not Started
+                                                  </div>
+                                                </SelectItem>
+                                                <SelectItem value="in-progress">
+                                                  <div className="flex items-center">
+                                                    <Clock className="h-4 w-4 mr-2 text-yellow-500" />
+                                                    In Progress
+                                                  </div>
+                                                </SelectItem>
+                                                <SelectItem value="completed">
+                                                  <div className="flex items-center">
+                                                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                                                    Completed
+                                                  </div>
+                                                </SelectItem>
+                                                <SelectItem value="delayed">
+                                                  <div className="flex items-center">
+                                                    <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                                                    Delayed
+                                                  </div>
+                                                </SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Textarea
+                                              value={action.notes}
+                                              onChange={(e) => {
+                                                setReportData((prev) => ({
+                                                  ...prev,
+                                                  followUpData: {
+                                                    ...prev.followUpData,
+                                                    actions: prev.followUpData.actions.map((a) =>
+                                                      a.id === action.id ? { ...a, notes: e.target.value } : a
+                                                    ),
+                                                  },
+                                                }));
+                                              }}
+                                              placeholder="Progress notes..."
+                                              className="min-h-[60px] resize-none"
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <div className="flex flex-col space-y-2">
+                                              <Button
+                                                onClick={() => {
+                                                  // Save this specific action's progress
+                                                  const homeId = searchParams.get("homeId") || "sample-home";
+                                                  const existingActions = localStorage.getItem(`actions-${homeId}`);
+                                                  if (existingActions) {
+                                                    const actions: Action[] = JSON.parse(existingActions);
+                                                    const updatedActions = actions.map(a => {
+                                                      if (a.description === action.description) {
+                                                        return {
+                                                          ...a,
+                                                          status: action.status as Action["status"],
+                                                          progressUpdate: action.notes,
+                                                        };
+                                                      }
+                                                      return a;
+                                                    });
+                                                    localStorage.setItem(`actions-${homeId}`, JSON.stringify(updatedActions));
+                                                  }
+                                                  toast({
+                                                    title: "Action Updated",
+                                                    description: "Progress has been saved for this action.",
+                                                    duration: 2000,
+                                                  });
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                              >
+                                                <Save className="h-4 w-4" />
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setReportData((prev) => ({
+                                                    ...prev,
+                                                    followUpData: {
+                                                      ...prev.followUpData,
+                                                      actions: prev.followUpData.actions.filter(
+                                                        (a) => a.id !== action.id
+                                                      ),
+                                                    },
+                                                  }));
+                                                }}
+                                                className="text-red-600 hover:text-red-700"
+                                              >
+                                                <X className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Add New Action Section */}
+                            <div className="border-t pt-6">
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className="font-medium text-lg">
+                                  Add New Follow-Up Action
+                                </h4>
+                                <Button
+                                  onClick={() => {
+                                    // Save all current follow-up progress before adding new action
+                                    const homeId = searchParams.get("homeId") || "sample-home";
+                                    const existingActions = localStorage.getItem(`actions-${homeId}`);
+                                    if (existingActions) {
+                                      const actions: Action[] = JSON.parse(existingActions);
+                                      const updatedActions = actions.map(a => {
+                                        const followUpAction = reportData.followUpData.actions.find(fa => fa.description === a.description);
+                                        if (followUpAction) {
+                                          return {
+                                            ...a,
+                                            status: followUpAction.status as Action["status"],
+                                            progressUpdate: followUpAction.notes,
+                                          };
+                                        }
+                                        return a;
+                                      });
+                                      localStorage.setItem(`actions-${homeId}`, JSON.stringify(updatedActions));
+                                    }
+                                    toast({
+                                      title: "Progress Saved",
+                                      description: "All follow-up progress has been saved.",
+                                      duration: 2000,
+                                    });
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Save className="h-4 w-4 mr-2" />
+                                  Save All Progress
+                                </Button>
+                              </div>
+                              
+                              <Button
+                                onClick={() => {
+                                  const newAction: FollowUpAction = {
+                                    id: Date.now().toString(),
+                                    description: "",
+                                    status: "not-started",
+                                    notes: "",
+                                    originalDeadline: "",
+                                    responsiblePerson: "",
+                                  };
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    followUpData: {
+                                      ...prev.followUpData,
+                                      actions: [...prev.followUpData.actions, newAction],
+                                    },
+                                  }));
+                                }}
+                                variant="outline"
+                                className="w-full"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add New Follow-Up Action
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about follow-up actions or progress from the previous visit..."
+                              className="mt-1 min-h-[100px]"
+                            />
+                          </div>
+                        </div>
+                      ) : section.id === "leadership_management" ? (
+                        /* Leadership & Management (Reg 13) Section */
+                        <div className="space-y-6">
+                          {/* Manager Impact Text Input */}
+                          <div>
+                            <Label htmlFor="manager-impact">Manager Impact</Label>
+                            <Textarea
+                              id="manager-impact"
+                              value={reportData.leadershipManagementData.managerImpact}
+                              onChange={(e) =>
+                                setReportData((prev) => ({
+                                  ...prev,
+                                  leadershipManagementData: {
+                                    ...prev.leadershipManagementData,
+                                    managerImpact: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Describe the impact of the manager's leadership on the home, including their vision, approach to staff development, and influence on the quality of care..."
+                              className="mt-1 min-h-[120px]"
+                            />
+                          </div>
+
+                          {/* Multi-select Staff Strengths/Needs */}
+                          <div>
+                            <Label className="text-base font-medium mb-4 block">
+                              Staff Strengths & Development Needs
+                            </Label>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Select all areas where staff demonstrate strengths or have development needs.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {STAFF_STRENGTHS_NEEDS_OPTIONS.map((option) => (
+                                <div
+                                  key={option}
+                                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
+                                >
+                                  <Checkbox
+                                    id={`staff-option-${option.replace(/\s+/g, '-').toLowerCase()}`}
+                                    checked={reportData.leadershipManagementData.staffStrengthsNeeds.includes(option)}
+                                    onCheckedChange={(checked) => {
+                                      setReportData((prev) => ({
+                                        ...prev,
+                                        leadershipManagementData: {
+                                          ...prev.leadershipManagementData,
+                                          staffStrengthsNeeds: checked
+                                            ? [...prev.leadershipManagementData.staffStrengthsNeeds, option]
+                                            : prev.leadershipManagementData.staffStrengthsNeeds.filter(s => s !== option),
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`staff-option-${option.replace(/\s+/g, '-').toLowerCase()}`}
+                                    className="text-sm font-medium flex-1 cursor-pointer"
+                                  >
+                                    {option}
+                                  </Label>
+                                  {reportData.leadershipManagementData.staffStrengthsNeeds.includes(option) && (
+                                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {reportData.leadershipManagementData.staffStrengthsNeeds.length > 0 && (
+                              <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800 mb-2">
+                                  Selected Areas ({reportData.leadershipManagementData.staffStrengthsNeeds.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {reportData.leadershipManagementData.staffStrengthsNeeds.map((option) => (
+                                    <Badge key={option} variant="secondary" className="text-xs">
+                                      {option}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Improvement Areas Toggle */}
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="improvement-areas" className="text-base font-medium">
+                                Improvement Areas Identified
+                              </Label>
+                              <Switch
+                                id="improvement-areas"
+                                checked={reportData.leadershipManagementData.improvementAreas}
+                                onCheckedChange={(checked) =>
+                                  setReportData((prev) => ({
+                                    ...prev,
+                                    leadershipManagementData: {
+                                      ...prev.leadershipManagementData,
+                                      improvementAreas: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Toggle this on if specific improvement areas have been identified for leadership and management.
+                            </p>
+                            {reportData.leadershipManagementData.improvementAreas && (
+                              <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                <div className="flex items-start space-x-2">
+                                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                                  <div className="text-sm text-orange-800">
+                                    <p className="font-medium mb-1">Improvement Areas Identified</p>
+                                    <p>
+                                      Please ensure that specific improvement areas are documented in the manager impact section above or in the additional notes section below.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Additional Notes */}
+                          <div>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Additional Notes (Optional)
+                            </Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) =>
+                                handleSectionContentChange(
+                                  section.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Any additional observations about leadership and management, including governance, oversight, staff supervision, or management systems..."
                               className="mt-1 min-h-[100px]"
                             />
                           </div>
