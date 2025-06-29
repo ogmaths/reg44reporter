@@ -284,30 +284,26 @@ type FormType = "quick";
 type FormStep = "selection" | "form";
 
 const REGISTERED_CHILDRENS_HOME_SECTIONS = [
-  { id: "quality_care", title: "Quality & Purpose of Care" },
-  { id: "voice", title: "Voice of the Child" },
-  { id: "environment", title: "Observations of the Environment" },
-  { id: "staff", title: "Staff & Management Discussion" },
-  { id: "records", title: "Records Reviewed" },
-  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
+  { id: "quality_care", title: "Quality & Purpose of Care (Reg 6)" },
+  { id: "voice", title: "Wishes & Feelings (Reg 7)" },
   { id: "education", title: "Education (Reg 8)" },
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
   { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
   { id: "protection_children", title: "Protection of Children (Reg 12)" },
   { id: "care_planning", title: "Care Planning (Reg 14)" },
+  { id: "staff", title: "Staff & Management Discussion" },
   { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
+  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
 ];
 
 const WELFARE_MONITORING_VISIT_SECTIONS = [
-  { id: "quality_care", title: "Quality & Purpose of Care" },
+  { id: "quality_care", title: "Quality & Purpose of Care (Reg 6)" },
   { id: "welfare_safeguarding", title: "Welfare & Safeguarding" },
   { id: "policies_statement", title: "Policies & Statement of Purpose" },
   { id: "environment_premises", title: "Environment & Premises" },
   { id: "staffing_training", title: "Staffing & Training" },
   { id: "support_young_person", title: "Support for the Young Person" },
-  { id: "records_documentation", title: "Records & Documentation" },
-  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
   { id: "education", title: "Education (Reg 8)" },
   { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
   { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
@@ -316,7 +312,9 @@ const WELFARE_MONITORING_VISIT_SECTIONS = [
   { id: "care_planning", title: "Care Planning (Reg 14)" },
   { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
   { id: "leadership_oversight", title: "Leadership & Oversight" },
+  { id: "staff", title: "Staff & Management Discussion" },
   { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
+  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
 ];
 
 const STAFF_ROLES = [
@@ -446,7 +444,7 @@ const ReportBuilder = () => {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiGeneratedContent, setAiGeneratedContent] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("create");
-  const [formStep, setFormStep] = useState<FormStep>("selection");
+  const [formStep, setFormStep] = useState<FormStep>("form");
   const [isReportSubmitted, setIsReportSubmitted] = useState(false);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [showFormSwitchDialog, setShowFormSwitchDialog] = useState(false);
@@ -494,7 +492,12 @@ const ReportBuilder = () => {
     spokeWithChildren: false,
     childrenFeedback: [],
     staffFeedback: [],
-    documentChecklist: [],
+    documentChecklist: REGISTERED_HOME_DOCUMENTS.map((doc, index) => ({
+      id: `doc-${index}`,
+      name: doc,
+      checked: false,
+      notes: "",
+    })),
     safeguardingOpinion: null,
     safeguardingComment: "",
     wellbeingOpinion: null,
@@ -604,7 +607,7 @@ const ReportBuilder = () => {
   const [showVisitTypeError, setShowVisitTypeError] = useState(false);
   const [purposeOfVisitError, setPurposeOfVisitError] = useState("");
   const [showPurposeOfVisitError, setShowPurposeOfVisitError] = useState(false);
-  const isFormUnlocked = reportData.settingType !== "" && reportData.formType !== "" && reportData.visitType !== "" && reportData.purposeOfVisit !== "";
+  const isFormUnlocked = reportData.formType !== "" && reportData.visitType !== "" && reportData.purposeOfVisit !== "";
   const isFormSelectionComplete = reportData.formType !== "";
 
   // State for follow-up message generator
@@ -839,10 +842,8 @@ const ReportBuilder = () => {
         setHasOfflineChanges(true);
         setLastSaved(new Date(parsedData.lastSaved));
         
-        // Set form step based on whether form type is selected
-        if (parsedData.reportData.formType) {
-          setFormStep("form");
-        }
+        // Always set form step to form since we skip selection
+        setFormStep("form");
 
         toast({
           title: "📄 Offline Draft Loaded",
@@ -911,8 +912,8 @@ const ReportBuilder = () => {
   }, [reportData, isOnline, saveToLocalStorage]);
 
   const handleSaveDraft = (isAutoSave = false) => {
-    // Prevent auto-save if form type, setting type, visit type, or purpose of visit is not selected
-    if ((!reportData.formType || !reportData.settingType || !reportData.visitType || !reportData.purposeOfVisit) && isAutoSave) {
+    // Prevent auto-save if form type, visit type, or purpose of visit is not selected
+    if ((!reportData.formType || !reportData.visitType || !reportData.purposeOfVisit) && isAutoSave) {
       return;
     }
 
@@ -923,22 +924,7 @@ const ReportBuilder = () => {
       return;
     }
 
-    // Show error if trying to manually save without setting type
-    if (!reportData.settingType && !isAutoSave) {
-      setShowSettingTypeError(true);
-      setSettingTypeError("Please select a setting type before saving.");
-      // Scroll to setting type field
-      const settingTypeElement = document.querySelector(
-        "[data-setting-type-select]",
-      );
-      if (settingTypeElement) {
-        settingTypeElement.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-      return;
-    }
+
 
     // Show error if trying to manually save without visit type
     if (!reportData.visitType && !isAutoSave) {
@@ -1497,24 +1483,7 @@ const ReportBuilder = () => {
       return;
     }
 
-    // Prevent submission if setting type is not selected
-    if (!reportData.settingType) {
-      setShowSettingTypeError(true);
-      setSettingTypeError(
-        "Please select a setting type before submitting the report.",
-      );
-      // Scroll to setting type field
-      const settingTypeElement = document.querySelector(
-        "[data-setting-type-select]",
-      );
-      if (settingTypeElement) {
-        settingTypeElement.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-      return;
-    }
+
 
     // Prevent submission if visit type is not selected
     if (!reportData.visitType) {
@@ -1716,12 +1685,7 @@ const ReportBuilder = () => {
 
   // Helper function to get form type display name
   const getFormTypeDisplayName = (formType: FormType) => {
-    switch (formType) {
-      case "quick":
-        return "Report Form";
-      default:
-        return "Report Form";
-    }
+    return reportData.purposeOfVisit || "Report Form";
   };
 
   // Handle setting type change and update sections accordingly
@@ -2352,7 +2316,7 @@ Kind regards,
     return newVersion;
   };
 
-  // Handle form type selection
+  // Handle form type selection (kept for compatibility but not used in selection flow)
   const handleFormTypeSelection = (formType: FormType) => {
     setReportData((prev) => ({
       ...prev,
@@ -2559,7 +2523,8 @@ Continue with Report Form
                     <SelectItem value="pre-placement-visit">Pre-Placement Visit</SelectItem>
                     <SelectItem value="follow-up-visit">Follow-Up Visit</SelectItem>
                     <SelectItem value="safeguarding-welfare-concern">Safeguarding or Welfare Concern</SelectItem>
-                    <SelectItem value="visit-commissioned-by-la-provider">Visit Commissioned by Local Authority or Provider</SelectItem>
+                    <SelectItem value="visit-commissioned-by-local-authority">Visit Commissioned by Local Authority</SelectItem>
+                    <SelectItem value="visit-commissioned-by-provider">Visit Commissioned by Provider</SelectItem>
                     <SelectItem value="transition-placement-ending">Transition Visit or Placement Ending Review</SelectItem>
                   </SelectContent>
                 </Select>
@@ -3089,9 +3054,7 @@ Back to Dashboard
 
       {viewMode === "review" && renderReviewScreen()}
 
-      {viewMode === "create" && formStep === "selection" && renderFormTypeSelection()}
-
-      {viewMode === "create" && formStep === "form" && (
+      {viewMode === "create" && (
         <div className="max-w-4xl mx-auto px-6 py-8">
           {/* Visit Information */}
           <Card className="mb-8 bg-white">
@@ -3155,64 +3118,27 @@ Back to Dashboard
                 </div>
               </div>
 
-              <div data-setting-type-select>
+              <div>
                 <Label className="text-sm font-medium text-gray-600">
-                  What type of setting are you visiting? *
+                  Setting Type *
                 </Label>
                 <Select
                   value={reportData.settingType}
-                  onValueChange={(
-                    value:
-                      | "registered_childrens_home"
-                      | "welfare_monitoring_visit",
-                  ) => handleSettingTypeChange(value)}
+                  onValueChange={(value: "registered_childrens_home" | "welfare_monitoring_visit") => {
+                    handleSettingTypeChange(value);
+                  }}
                 >
-                  <SelectTrigger
-                    className={`mt-2 ${showSettingTypeError && !reportData.settingType ? "border-red-500 ring-1 ring-red-500" : ""}`}
-                  >
+                  <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select setting type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="registered_childrens_home">
-                      registered children's home
-                    </SelectItem>
-                    <SelectItem value="welfare_monitoring_visit">
-                      Welfare Monitoring Visit
-                    </SelectItem>
+                    <SelectItem value="registered_childrens_home">Registered Children's Home</SelectItem>
+                    <SelectItem value="welfare_monitoring_visit">Welfare Monitoring Visit</SelectItem>
                   </SelectContent>
                 </Select>
-                {!reportData.settingType && (
-                  <p
-                    className={`text-sm mt-2 ${showSettingTypeError ? "text-red-600" : "text-gray-500"}`}
-                  >
-                    {showSettingTypeError
-                      ? settingTypeError
-                      : "Please select a setting type to begin completing this report."}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-600">
-                  Visit Type *
-                </Label>
-                <Select
-                  value={reportData.visitType}
-                  onValueChange={(value: "announced" | "unannounced") =>
-                    setReportData((prev) => ({
-                      ...prev,
-                      visitType: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Select visit type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="announced">Announced</SelectItem>
-                    <SelectItem value="unannounced">Unannounced</SelectItem>
-                  </SelectContent>
-                </Select>
+                <p className="text-sm text-gray-500 mt-1">
+                  This determines which sections and documents are included in your report.
+                </p>
               </div>
 
               <div data-purpose-of-visit-select>
@@ -3242,7 +3168,8 @@ Back to Dashboard
                     <SelectItem value="pre-placement-visit">Pre-Placement Visit</SelectItem>
                     <SelectItem value="follow-up-visit">Follow-Up Visit</SelectItem>
                     <SelectItem value="safeguarding-welfare-concern">Safeguarding or Welfare Concern</SelectItem>
-                    <SelectItem value="visit-commissioned-by-la-provider">Visit Commissioned by Local Authority or Provider</SelectItem>
+                    <SelectItem value="visit-commissioned-by-local-authority">Visit Commissioned by Local Authority</SelectItem>
+                    <SelectItem value="visit-commissioned-by-provider">Visit Commissioned by Provider</SelectItem>
                     <SelectItem value="transition-placement-ending">Transition Visit or Placement Ending Review</SelectItem>
                   </SelectContent>
                 </Select>
@@ -3255,6 +3182,29 @@ Back to Dashboard
                       : "Please select a purpose of visit to continue completing this report."}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Visit Type *
+                </Label>
+                <Select
+                  value={reportData.visitType}
+                  onValueChange={(value: "announced" | "unannounced") =>
+                    setReportData((prev) => ({
+                      ...prev,
+                      visitType: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select visit type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="announced">Announced</SelectItem>
+                    <SelectItem value="unannounced">Unannounced</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -3313,39 +3263,7 @@ Back to Dashboard
                     ))}
                   </div>
 
-                  {reportData.documentChecklist.length > 0 && (
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">
-                            Progress Summary
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            {
-                              reportData.documentChecklist.filter(
-                                (item) => item.checked,
-                              ).length
-                            }{" "}
-                            of {reportData.documentChecklist.length} documents
-                            reviewed
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {Math.round(
-                              (reportData.documentChecklist.filter(
-                                (item) => item.checked,
-                              ).length /
-                                reportData.documentChecklist.length) *
-                                100,
-                            )}
-                            %
-                          </div>
-                          <p className="text-xs text-gray-600">Complete</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Generate Follow-Up Message to Manager */}
                   {reportData.documentChecklist.length > 0 && (
@@ -3370,19 +3288,6 @@ Back to Dashboard
                             <Mail className="h-4 w-4 mr-2" />
                             Generate Follow-Up Message
                           </Button>
-                          <div className="text-sm text-gray-500">
-                            {
-                              reportData.documentChecklist.filter(
-                                (item) => !item.checked,
-                              ).length
-                            }{" "}
-                            missing document
-                            {reportData.documentChecklist.filter(
-                              (item) => !item.checked,
-                            ).length !== 1
-                              ? "s"
-                              : ""}
-                          </div>
                         </div>
 
                         {showFollowUpMessage && followUpMessage && (
@@ -3462,7 +3367,7 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
+                  Select form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
@@ -6503,14 +6408,14 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
+                  Select form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
             <CardHeader>
               <CardTitle className="flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2" />
-                Independent Person's Final Comments
+                Independent Person's Statutory Judgement (Reg 44.4)
               </CardTitle>
               <CardDescription>
                 Complete the legally required elements for Regulation 44.4. These responses will be included in the structured PDF export.
@@ -6730,7 +6635,7 @@ Back to Dashboard
             {!isFormUnlocked && (
               <div className="absolute inset-0 bg-gray-100/50 rounded-lg flex items-center justify-center z-10">
                 <div className="bg-white px-4 py-2 rounded-lg shadow-md border text-sm text-gray-600">
-                  Select setting type, form type, visit type, and purpose of visit above to unlock this section
+                  Select form type, visit type, and purpose of visit above to unlock this section
                 </div>
               </div>
             )}
