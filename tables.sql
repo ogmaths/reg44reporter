@@ -1,0 +1,83 @@
+-- create table organizations (
+--   id uuid primary key default uuid_generate_v4(),
+--   name text not null,
+--   billing_email text,
+--   stripe_customer_id text,
+--   created_at timestamp with time zone default now()
+-- );
+
+-- create table users (
+--   id uuid primary key default uuid_generate_v4(),
+--   email text unique not null,
+--   full_name text,
+--   role text default 'ip', -- 'ip', 'admin'
+--   is_freelancer boolean default false,
+--   organization_id uuid references organizations(id),
+--   created_at timestamp with time zone default now()
+-- );
+-- create table subscriptions (
+--   id uuid primary key default uuid_generate_v4(),
+--   user_id uuid references users(id) on delete cascade,
+--   stripe_subscription_id text,
+--   plan text, -- 'monthly', 'annual'
+--   status text, -- 'active', 'canceled', etc.
+--   started_at timestamp,
+--   ended_at timestamp,
+--   created_at timestamp with time zone default now()
+-- );
+-- create table homes (
+--   id uuid primary key default uuid_generate_v4(),
+--   name text not null,
+--   address text,
+--   created_by uuid references users(id),
+--   organization_id uuid references organizations(id),
+--   created_at timestamp with time zone default now()
+-- );
+-- create table home_assignments (
+--   id uuid primary key default uuid_generate_v4(),
+--   user_id uuid references users(id),
+--   home_id uuid references homes(id),
+--   assigned_by uuid references users(id),
+--   created_at timestamp with time zone default now()
+-- );
+
+-- create table visits (
+--   id uuid primary key default uuid_generate_v4(),
+--   home_id uuid references homes(id),
+--   scheduled_for date,
+--   created_by uuid references users(id),
+--   status text default 'scheduled', -- 'scheduled', 'completed'
+--   created_at timestamp with time zone default now()
+-- );
+
+-- create table reports (
+--   id uuid primary key default uuid_generate_v4(),
+--   visit_id uuid references visits(id),
+--   home_id uuid references homes(id),
+--   created_by uuid references users(id),
+--   summary text,
+--   dictation_url text,
+--   child_voice text,
+--   staff_view text,
+--   evidence jsonb,
+--   action_tracker jsonb,
+--   pdf_url text,
+--   submitted_at timestamp,
+--   created_at timestamp with time zone default now()
+-- );
+
+
+-- create table organization_documents (
+--   id uuid primary key default uuid_generate_v4(),
+--   organization_id uuid references organizations(id),
+--   title text,
+--   file_url text,
+--   uploaded_by uuid references users(id),
+--   created_at timestamp with time zone default now()
+-- );
+-- create table billing_portals (
+--   id uuid primary key default uuid_generate_v4(),
+--   user_id uuid references users(id),
+--   stripe_portal_url text,
+--   last_accessed timestamp
+-- );

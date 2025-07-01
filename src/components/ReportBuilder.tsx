@@ -7110,7 +7110,6 @@ Back to Dashboard
           </div>
         </div>
       )}
-      )}
     </div>
   );
 };
