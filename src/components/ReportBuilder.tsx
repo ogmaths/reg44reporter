@@ -1,7 +1,46 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import jsPDF from "jspdf";
-import { useToast } from "./ui/use-toast";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Cloud,
+  CloudOff,
+  Copy,
+  Download,
+  Eye,
+  Mail,
+  MapPin,
+  Mic,
+  MicOff,
+  Plus,
+  RefreshCw,
+  Save,
+  Send,
+  Share2,
+  Sparkles,
+  Target,
+  Upload,
+  User,
+  Wifi,
+  WifiOff,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useReport } from '../lib/useReport';
+import { createVisit } from '../lib/useVisit';
+import { supabase } from '../types/supabase';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import {
   Card,
   CardContent,
@@ -9,18 +48,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
-import { Badge } from "./ui/badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "./ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +57,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -37,36 +67,6 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Switch } from "./ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import {
-  ArrowLeft,
-  Mic,
-  MicOff,
-  Upload,
-  X,
-  Save,
-  Send,
-  Download,
-  Sparkles,
-  Calendar,
-  MapPin,
-  Building,
-  Clock,
-  Eye,
-  Share2,
-  Copy,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  User,
-  Target,
-  Wifi,
-  WifiOff,
-  Cloud,
-  CloudOff,
-  RefreshCw,
-  Mail,
-} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -75,365 +75,52 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Textarea } from "./ui/textarea";
+import { useToast } from "./ui/use-toast";
+// Remove interfaces and types from here and import from types/reportBuilder
+import {
+  Action,
+  ChildFeedback,
+  DocumentChecklistItem,
+  FollowUpAction,
+  FormStep,
+  FormType,
+  ReportData,
+  ReportVersion,
+  StaffFeedback,
+  ViewMode
+} from "../types/reportBuilder";
+import {
+  CARE_PLANNING_NEEDS_AREAS,
+  HEALTH_SERVICES,
+  HOBBY_OPTIONS,
+  REGISTERED_CHILDRENS_HOME_SECTIONS,
+  REGISTERED_HOME_DOCUMENTS,
+  STAFF_ROLES,
+  STAFF_STRENGTHS_NEEDS_OPTIONS,
+  UNREGISTERED_SETTING_DOCUMENTS,
+  WELFARE_MONITORING_VISIT_SECTIONS,
+} from "../types/reportBuilderMockData";
+import { getS3SignedUrl, uploadPdfToS3 } from '../lib/api';
+import { getTimestamp } from "@/lib/utils";
 
-interface ReportSection {
-  id: string;
-  title: string;
-  content: string;
-  images: File[];
-  isRecording: boolean;
+// Add this before using window.SpeechRecognition or window.webkitSpeechRecognition
+interface WindowWithSpeechRecognition extends Window {
+  SpeechRecognition?: typeof SpeechRecognition;
+  webkitSpeechRecognition?: typeof SpeechRecognition;
 }
 
-interface Action {
-  id: string;
-  description: string;
-  responsiblePerson: string;
-  deadline: string;
-  status: "not-started" | "in-progress" | "completed";
-  createdDate: string;
-  homeId: string;
-  progressUpdate?: string;
-}
-
-interface ChildFeedback {
-  id: string;
-  initialsOrCode: string;
-  age: string;
-  summary: string;
-  concernsRaised: boolean;
-  actionTaken: string;
-  includeInAISummary: boolean;
-}
-
-interface StaffFeedback {
-  id: string;
-  initialsOrCode: string;
-  role: string;
-  questionsAsked: string;
-  keyPointsRaised: string;
-  concernsRaised: boolean;
-  includeInAISummary: boolean;
-}
-
-interface DocumentChecklistItem {
-  id: string;
-  name: string;
-  checked: boolean;
-  notes: string;
-}
-
-interface FinalComments {
-  safeguardingOpinion: "yes" | "no" | "not-sure" | "";
-  safeguardingExplanation: string;
-  wellbeingOpinion: "yes" | "no" | "not-sure" | "";
-  wellbeingExplanation: string;
-  recommendations: Array<{
-    id: string;
-    text: string;
-    priority: "high" | "medium" | "low" | "";
-  }>;
-}
-
-interface QualityCareData {
-  externalEnvironment: {
-    condition: string;
-    safety: boolean;
-    maintenance: string;
-    privacy: boolean;
-    homeliness: string;
-    comments: string;
-  };
-  internalEnvironment: {
-    condition: string;
-    safety: boolean;
-    maintenance: string;
-    privacy: boolean;
-    homeliness: string;
-    comments: string;
-  };
-  overallImpression: {
-    condition: string;
-    safety: boolean;
-    maintenance: string;
-    privacy: boolean;
-    homeliness: string;
-    comments: string;
-  };
-  generalComments: string;
-}
-
-interface EducationData {
-  attendanceStatus: string;
-  engagementSummary: string;
-  educationPlans: Array<{
-    id: string;
-    name: string;
-    checked: boolean;
-  }>;
-}
-
-interface EnjoymentAchievementData {
-  selectedHobbies: string[];
-  engagementSupport: string;
-  activityLogs: Array<{
-    id: string;
-    activity: string;
-    date: string;
-    notes: string;
-  }>;
-}
-
-interface HealthWellbeingData {
-  healthRegistration: boolean;
-  services: string[];
-  notes: string;
-}
-
-interface PositiveRelationshipsData {
-  bondingExamples: string;
-  conflictResolutionExamples: string;
-  concernsRaised: boolean;
-}
-
-interface CarePlanningData {
-  planProgress: string;
-  needsAreas: string[];
-  identityComments: string;
-  independenceComments: string;
-  generalComments: string;
-}
-
-interface FollowUpAction {
-  id: string;
-  description: string;
-  status: "not-started" | "in-progress" | "completed" | "delayed";
-  notes: string;
-  originalDeadline: string;
-  responsiblePerson: string;
-}
-
-interface FollowUpData {
-  actions: FollowUpAction[];
-}
-
-interface LeadershipManagementData {
-  managerImpact: string;
-  staffStrengthsNeeds: string[];
-  improvementAreas: boolean;
-}
-
-interface ProtectionChildrenData {
-  safeguardingChecklist: {
-    policiesInPlace: boolean;
-    staffUnderstanding: boolean;
-    risksIdentified: boolean;
-    childrenFeelSafe: boolean;
-    incidentLogsUpToDate: boolean;
-    physicalInterventionsReviewed: boolean;
-    complaintsHandled: boolean;
-    missingEventsFollowedUp: boolean;
-    onlineSafetyPromoted: boolean;
-    externalAgenciesEngaged: boolean;
-    safetyConcernsEscalated: boolean;
-  };
-  safeguardingSummary: string;
-  overallAssessment: "fully-meets" | "partially-meets" | "does-not-meet" | "";
-}
-
-interface ReportData {
-  homeName: string;
-  homeAddress: string;
-  visitDate: string;
-  visitType: "announced" | "unannounced" | "";
-  purposeOfVisit: string;
-  settingType: "registered_childrens_home" | "welfare_monitoring_visit" | "";
-  formType: "quick" | "";
-  sections: ReportSection[];
-  actions: Action[];
-  recommendationsSummary: string;
-  spokeWithChildren: boolean;
-  childrenFeedback: ChildFeedback[];
-  staffFeedback: StaffFeedback[];
-  documentChecklist: DocumentChecklistItem[];
-  safeguardingOpinion: boolean | null;
-  safeguardingComment: string;
-  wellbeingOpinion: boolean | null;
-  wellbeingComment: string;
-  finalComments: FinalComments;
-  qualityCareData: QualityCareData;
-  educationData: EducationData;
-  enjoymentAchievementData: EnjoymentAchievementData;
-  healthWellbeingData: HealthWellbeingData;
-  positiveRelationshipsData: PositiveRelationshipsData;
-  carePlanningData: CarePlanningData;
-  leadershipManagementData: LeadershipManagementData;
-  followUpData: FollowUpData;
-  protectionChildrenData: ProtectionChildrenData;
-}
-
-interface ReportVersion {
-  id: string;
-  timestamp: Date;
-  status: "draft" | "submitted";
-  data: ReportData;
-  description: string;
-}
-
-type ViewMode = "create" | "review";
-type FormType = "quick";
-type FormStep = "selection" | "form";
-
-const REGISTERED_CHILDRENS_HOME_SECTIONS = [
-  { id: "quality_care", title: "Quality & Purpose of Care (Reg 6)" },
-  { id: "voice", title: "Wishes & Feelings (Reg 7)" },
-  { id: "education", title: "Education (Reg 8)" },
-  { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
-  { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
-  { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
-  { id: "protection_children", title: "Protection of Children (Reg 12)" },
-  { id: "care_planning", title: "Care Planning (Reg 14)" },
-  { id: "staff", title: "Staff & Management Discussion" },
-  { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
-  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
-];
-
-const WELFARE_MONITORING_VISIT_SECTIONS = [
-  { id: "quality_care", title: "Quality & Purpose of Care (Reg 6)" },
-  { id: "welfare_safeguarding", title: "Welfare & Safeguarding" },
-  { id: "policies_statement", title: "Policies & Statement of Purpose" },
-  { id: "environment_premises", title: "Environment & Premises" },
-  { id: "staffing_training", title: "Staffing & Training" },
-  { id: "support_young_person", title: "Support for the Young Person" },
-  { id: "education", title: "Education (Reg 8)" },
-  { id: "enjoyment_achievement", title: "Enjoyment & Achievement (Reg 9)" },
-  { id: "health_wellbeing", title: "Health & Wellbeing (Reg 10)" },
-  { id: "positive_relationships", title: "Positive Relationships (Reg 11)" },
-  { id: "protection_children", title: "Protection of Children (Reg 12)" },
-  { id: "care_planning", title: "Care Planning (Reg 14)" },
-  { id: "leadership_management", title: "Leadership & Management (Reg 13)" },
-  { id: "leadership_oversight", title: "Leadership & Oversight" },
-  { id: "staff", title: "Staff & Management Discussion" },
-  { id: "ofsted_preparation", title: "Preparation for Ofsted Registration" },
-  { id: "follow_up_previous", title: "Follow-Up from Previous Visit" },
-];
-
-const STAFF_ROLES = [
-  "Key Worker",
-  "Senior",
-  "Night Staff",
-  "Deputy Manager",
-  "Team Leader",
-  "Support Worker",
-  "Residential Worker",
-  "Other",
-];
-
-const HOBBY_OPTIONS = [
-  "Sports & Physical Activities",
-  "Arts & Crafts",
-  "Music & Dance",
-  "Reading & Writing",
-  "Gaming & Technology",
-  "Cooking & Baking",
-  "Outdoor Activities",
-  "Drama & Theatre",
-  "Photography & Film",
-  "Science & Nature",
-  "Board Games & Puzzles",
-  "Volunteering & Community Work",
-  "Fashion & Beauty",
-  "Collecting",
-  "Learning Languages",
-  "Other",
-];
-
-const HEALTH_SERVICES = [
-  "GP (General Practitioner)",
-  "CAMHS (Child and Adolescent Mental Health Services)",
-  "Dentist",
-  "Opticians",
-];
-
-const CARE_PLANNING_NEEDS_AREAS = [
-  "Identity",
-  "Independence",
-  "Education & Training",
-  "Health & Wellbeing",
-  "Relationships",
-  "Life Skills",
-  "Emotional Support",
-  "Cultural Needs",
-];
-
-const STAFF_STRENGTHS_NEEDS_OPTIONS = [
-  "Communication Skills",
-  "Safeguarding Knowledge",
-  "Behaviour Management",
-  "Therapeutic Approaches",
-  "Record Keeping",
-  "Professional Development",
-  "Team Working",
-  "Cultural Awareness",
-  "Mental Health Support",
-  "Educational Support",
-  "Life Skills Teaching",
-  "Crisis Management",
-];
-
-const REGISTERED_HOME_DOCUMENTS = [
-  // Child-Focused
-  "Care Plan",
-  "Placement Plan / Agreement",
-  "Risk Assessments",
-  "Health / Education Plans",
-  "Life Story / Key Work Notes",
-  "Contact Arrangements",
-  // Daily Practice
-  "Daily Logs",
-  "Incident / Accident Reports",
-  "Complaints / Concerns Log",
-  "Sanctions / Rewards Log",
-  "Missing from Home Records",
-  // Staffing & Records
-  "Rota (last 2 weeks min.)",
-  "Staff List with Roles",
-  "Supervision Records",
-  "Training Matrix or Certificates",
-  "Recruitment Files (DBS, references)",
-  // Management & Oversight
-  "Statement of Purpose",
-  "Safeguarding Policy",
-  "Fire Safety Log",
-  "Health & Safety Assessments",
-  "Internal Reg 45 Reports (Manager's QA)",
-  "Visitors' Log",
-  "Notifications to Ofsted (serious incidents etc.)",
-];
-
-const UNREGISTERED_SETTING_DOCUMENTS = [
-  // Child-Focused
-  "Care Plan",
-  "Risk Assessments",
-  "Placement Agreement (from Local Authority)",
-  "Health / Education Overview (if not formal plans)",
-  "Evidence of Key Work / Daily Support Notes",
-  // Daily Practice
-  "Daily Logs / Case Notes",
-  "Incident Reports",
-  "Complaints / Concerns Record",
-  "Informal Sanctions / Behaviour Notes",
-  // Staffing & Records
-  "Rota (especially night cover)",
-  "Staff Details & Roles",
-  "Evidence of Basic Training (Safeguarding, First Aid)",
-  "DBS Confirmation Letters or Screenshots",
-  // Organisational Oversight
-  "Statement of Purpose (Draft or Working Version)",
-  "Fire Safety Risk Assessment",
-  "Evidence of Registration Intent (Ofsted application, payment, draft policies)",
-  "Contract / Agreement with LA",
-  "Any Internal QA Audits / Self-Assessments",
-];
+// ... existing code ...
+declare var SpeechRecognition: {
+  prototype: typeof SpeechRecognition;
+  new (): typeof SpeechRecognition;
+};
+declare var webkitSpeechRecognition: {
+  prototype: typeof SpeechRecognition;
+  new (): typeof SpeechRecognition;
+};
+// ... existing code ...
 
 const ReportBuilder = () => {
   const navigate = useNavigate();
@@ -614,6 +301,15 @@ const ReportBuilder = () => {
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [showFollowUpMessage, setShowFollowUpMessage] = useState(false);
   const [newDocumentName, setNewDocumentName] = useState("");
+
+  const { createReport, generateChildFriendlySummaryFromAi, loading: reportLoading, error: reportError } = useReport();
+
+  const [s3PdfLinks, setS3PdfLinks] = useState<{ report: string | null, summary: string | null }>({ report: null, summary: null });
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null));
+  }, []);
 
   // Offline functionality - Connection status detection
   useEffect(() => {
@@ -836,6 +532,7 @@ const ReportBuilder = () => {
             overallAssessment: "",
           };
         }
+        
         setReportData(parsedData.reportData);
         setAiGeneratedContent(parsedData.aiGeneratedContent || "");
         setChildFriendlySummary(parsedData.childFriendlySummary || "");
@@ -895,22 +592,21 @@ const ReportBuilder = () => {
   );
 
   // Auto-save functionality
-  useEffect(() => {
-    const autoSave = setInterval(() => {
-      if (isOnline) {
-        handleSaveDraft(true);
-      } else {
-        // Save offline
-        const success = saveToLocalStorage(reportData, true);
-        if (success) {
-          setLastSaved(new Date());
-        }
-      }
-    }, 15000); // Auto-save every 15 seconds
+  // useEffect(() => {
+  //   const autoSave = setInterval(() => {
+  //     if (isOnline) {
+  //       handleSaveDraft(true);
+  //     } else {
+  //       // Save offline
+  //       const success = saveToLocalStorage(reportData, true);
+  //       if (success) {
+  //         setLastSaved(new Date());
+  //       }
+  //     }
+  //   }, 15000); // Auto-save every 15 seconds
 
-    return () => clearInterval(autoSave);
-  }, [reportData, isOnline, saveToLocalStorage]);
-
+  //   return () => clearInterval(autoSave);
+  // }, [reportData, isOnline, saveToLocalStorage]);
   const handleSaveDraft = (isAutoSave = false) => {
     // Prevent auto-save if form type, visit type, or purpose of visit is not selected
     if ((!reportData.formType || !reportData.visitType || !reportData.purposeOfVisit) && isAutoSave) {
@@ -988,6 +684,59 @@ const ReportBuilder = () => {
     }
   };
 
+  // const handleSaveDraft = async (isAutoSave = false) => {
+  //   let visit_id = reportData.visitId;
+  //   const home_id = searchParams.get('homeId') || '';
+  //   const created_by = searchParams.get('userId') || '';
+  //   const organization_id = searchParams.get('organizationId') || '';
+
+  //   // If visit_id is not set, create a visit first using useVisit
+  //   if (!visit_id) {
+  //     const { id, error } = await createVisit({
+  //       home_id,
+  //       scheduled_for: reportData.visitDate,
+  //       created_by,
+  //       status: 'completed',
+  //     });
+  //     if (error || !id) {
+  //       toast({
+  //         title: 'Error',
+  //         description: error?.message || 'Failed to create visit.',
+  //         duration: 3000,
+  //       });
+  //       return;
+  //     }
+  //     visit_id = id;
+  //     setReportData((prev) => ({ ...prev, visitId: visit_id }));
+  //   }
+
+  //   // Save to Supabase using useReport
+  //   const success = await createReport({
+  //     home_id,
+  //     visit_id,
+  //     created_by,
+  //     organization_id,
+  //     data: reportData,
+  //     status: 'draft',
+  //   });
+  //   setLastSaved(new Date());
+  //   if (success) {
+  //     if (!isAutoSave) {
+  //       toast({
+  //         title: '\uD83D\uDCBE Draft Saved',
+  //         description: 'Your report has been saved to the cloud.',
+  //         duration: 2000,
+  //       });
+  //     }
+  //   } else {
+  //     toast({
+  //       title: 'Error',
+  //       description: reportError || 'Failed to save report.',
+  //       duration: 3000,
+  //     });
+  //   }
+  // };
+
   const handleSectionContentChange = (sectionId: string, content: string) => {
     setReportData((prev) => ({
       ...prev,
@@ -1037,8 +786,10 @@ const ReportBuilder = () => {
       return;
     }
 
+    // In startRecording, cast window as WindowWithSpeechRecognition
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      (window as WindowWithSpeechRecognition).SpeechRecognition ||
+      (window as WindowWithSpeechRecognition).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
     recognition.continuous = true;
@@ -1398,82 +1149,103 @@ const ReportBuilder = () => {
     }, 3000);
   };
 
+
+
+
+  // const generateChildFriendlySummary = () => {
+  //   setIsGeneratingChildFriendly(true);
+
+  //   return new Promise<string>((resolve) => {
+  //     setTimeout(() => {
+  //       const summarySection = reportData.sections.find(
+  //         (s) => s.id === "quality_care",
+  //       );
+  //       const voiceSection = reportData.sections.find((s) => s.id === "voice");
+  //       const environmentSection = reportData.sections.find(
+  //         (s) => s.id === "environment",
+  //       );
+
+  //       const childFriendlyTitle =
+  //         reportData.settingType === "welfare_monitoring_visit"
+  //           ? `What We Found During Our Welfare Monitoring Visit at ${reportData.homeName}`
+  //           : `What We Found During Our Visit to ${reportData.homeName}`;
+  //       let childFriendlyText = `# ${childFriendlyTitle}\n\n`;
+
+  //       const visitDescription =
+  //         reportData.settingType === "welfare_monitoring_visit"
+  //           ? `Hi everyone! We conducted an welfare monitoring visit at your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to help prepare for official registration.`
+  //           : `Hi everyone! We visited your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to make sure you're getting the best care possible.`;
+  //       childFriendlyText += `${visitDescription}\n\n`;
+
+  //       // Add positive findings
+  //       childFriendlyText += `## The Good Things We Noticed\n\n`;
+  //       childFriendlyText += `• Your home feels welcoming and comfortable\n`;
+  //       childFriendlyText += `• The staff care about making sure you're happy and safe\n`;
+  //       childFriendlyText += `• There are lots of activities and opportunities for you to enjoy\n`;
+  //       childFriendlyText += `• Your voices and opinions are being heard\n\n`;
+
+  //       // Add what young people told us
+  //       if (voiceSection?.content) {
+  //         childFriendlyText += `## What You Told Us\n\n`;
+  //         childFriendlyText += `We really enjoyed talking with some of you during our visit. It's important that we hear your thoughts and feelings about living here. Thank you for being so open and honest with us!\n\n`;
+  //       }
+
+  //       // Add improvements being made
+  //       if (reportData.actions.length > 0) {
+  //         childFriendlyText += `## Changes and Improvements Coming\n\n`;
+  //         childFriendlyText += `We've talked with the staff about some ways to make things even better for you:\n\n`;
+
+  //         reportData.actions.forEach((action, index) => {
+  //           // Simplify action descriptions for young people
+  //           let simplifiedAction = action.description;
+  //           if (simplifiedAction.length > 100) {
+  //             simplifiedAction = simplifiedAction.substring(0, 100) + "...";
+  //           }
+  //           childFriendlyText += `• ${simplifiedAction}\n`;
+  //         });
+  //         childFriendlyText += `\n`;
+  //       }
+
+  //       // Add who to talk to
+  //       childFriendlyText += `## If You Have Questions or Want to Talk\n\n`;
+  //       childFriendlyText += `Remember, you can always talk to:\n`;
+  //       childFriendlyText += `• Your key worker or any member of staff\n`;
+  //       childFriendlyText += `• The home manager\n`;
+  //       childFriendlyText += `• Your social worker\n`;
+  //       childFriendlyText += `• The Independent Person (that's us!) - we visit regularly to make sure everything is going well\n\n`;
+
+  //       childFriendlyText += `Your thoughts and feelings matter, and there are always people here who want to listen and help.\n\n`;
+
+  //       childFriendlyText += `## What Happens Next\n\n`;
+  //       childFriendlyText += `We'll keep checking in to see how the improvements are going, and we'll be back for another visit soon. Keep being amazing!\n\n`;
+
+  //       childFriendlyText += `---\n\n`;
+  //       childFriendlyText += `*This summary was created especially for the young people living at ${reportData.homeName}. It explains our visit in a way that's easy to understand.*`;
+
+  //       setChildFriendlySummary(childFriendlyText);
+  //       setIsGeneratingChildFriendly(false);
+  //       resolve(childFriendlyText); // <-- resolve the Promise with the summary
+  //     }, 2000);
+  //   });
+  // };
+
   const generateChildFriendlySummary = async () => {
     setIsGeneratingChildFriendly(true);
-
-    // Simulate AI generation for child-friendly summary
-    setTimeout(() => {
-      const summarySection = reportData.sections.find(
-        (s) => s.id === "quality_care",
-      );
-      const voiceSection = reportData.sections.find((s) => s.id === "voice");
-      const environmentSection = reportData.sections.find(
-        (s) => s.id === "environment",
-      );
-
-      const childFriendlyTitle =
-        reportData.settingType === "welfare_monitoring_visit"
-          ? `What We Found During Our Welfare Monitoring Visit at ${reportData.homeName}`
-          : `What We Found During Our Visit to ${reportData.homeName}`;
-      let childFriendlyText = `# ${childFriendlyTitle}\n\n`;
-
-      const visitDescription =
-        reportData.settingType === "welfare_monitoring_visit"
-          ? `Hi everyone! We conducted an welfare monitoring visit at your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to help prepare for official registration.`
-          : `Hi everyone! We visited your home on ${new Date(reportData.visitDate).toLocaleDateString()} to see how things are going and to make sure you're getting the best care possible.`;
-      childFriendlyText += `${visitDescription}\n\n`;
-
-      // Add positive findings
-      childFriendlyText += `## The Good Things We Noticed\n\n`;
-      childFriendlyText += `• Your home feels welcoming and comfortable\n`;
-      childFriendlyText += `• The staff care about making sure you're happy and safe\n`;
-      childFriendlyText += `• There are lots of activities and opportunities for you to enjoy\n`;
-      childFriendlyText += `• Your voices and opinions are being heard\n\n`;
-
-      // Add what young people told us
-      if (voiceSection?.content) {
-        childFriendlyText += `## What You Told Us\n\n`;
-        childFriendlyText += `We really enjoyed talking with some of you during our visit. It's important that we hear your thoughts and feelings about living here. Thank you for being so open and honest with us!\n\n`;
-      }
-
-      // Add improvements being made
-      if (reportData.actions.length > 0) {
-        childFriendlyText += `## Changes and Improvements Coming\n\n`;
-        childFriendlyText += `We've talked with the staff about some ways to make things even better for you:\n\n`;
-
-        reportData.actions.forEach((action, index) => {
-          // Simplify action descriptions for young people
-          let simplifiedAction = action.description;
-          if (simplifiedAction.length > 100) {
-            simplifiedAction = simplifiedAction.substring(0, 100) + "...";
-          }
-          childFriendlyText += `• ${simplifiedAction}\n`;
-        });
-        childFriendlyText += `\n`;
-      }
-
-      // Add who to talk to
-      childFriendlyText += `## If You Have Questions or Want to Talk\n\n`;
-      childFriendlyText += `Remember, you can always talk to:\n`;
-      childFriendlyText += `• Your key worker or any member of staff\n`;
-      childFriendlyText += `• The home manager\n`;
-      childFriendlyText += `• Your social worker\n`;
-      childFriendlyText += `• The Independent Person (that's us!) - we visit regularly to make sure everything is going well\n\n`;
-
-      childFriendlyText += `Your thoughts and feelings matter, and there are always people here who want to listen and help.\n\n`;
-
-      childFriendlyText += `## What Happens Next\n\n`;
-      childFriendlyText += `We'll keep checking in to see how the improvements are going, and we'll be back for another visit soon. Keep being amazing!\n\n`;
-
-      childFriendlyText += `---\n\n`;
-      childFriendlyText += `*This summary was created especially for the young people living at ${reportData.homeName}. It explains our visit in a way that's easy to understand.*`;
-
-      setChildFriendlySummary(childFriendlyText);
+    try {
+      const summary = await generateChildFriendlySummaryFromAi(reportData);
+      console.log("summary>>> ",summary)
+      setChildFriendlySummary(summary);
       setIsGeneratingChildFriendly(false);
-    }, 2000);
+      return summary;
+    } catch (error) {
+      console.error('Error generating AI report summary:', error);
+      setIsGeneratingChildFriendly(false);
+      throw error;
+    }
   };
 
   const handleSubmitFinalReport = async () => {
+    alert("im in")
     // Prevent submission if form type is not selected
     if (!reportData.formType) {
       setShowFormTypeError(true);
@@ -1482,8 +1254,6 @@ const ReportBuilder = () => {
       );
       return;
     }
-
-
 
     // Prevent submission if visit type is not selected
     if (!reportData.visitType) {
@@ -1528,10 +1298,120 @@ const ReportBuilder = () => {
       await generateChildFriendlySummary();
     }
 
-    // In a real app, this would submit to backend and notify stakeholders
+    // --- Generate and upload main report PDF ---
+    let reportPdfUrl: string | null = null;
+    let summaryPdfUrl: string | null = null;
+    let reportPdfKey: string | null = null;
+    let summaryPdfKey: string | null = null;
+    try {
+      // Main report PDF
+      const reportPdf = new jsPDF();
+      // ... (PDF content generation code) ...
+      const reportFileName = `Regulation44_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
+      const reportPdfBlob = await handleDownloadPDF(false);
+      if (reportPdfBlob) {
+        const { url: reportUrl } = await getS3SignedUrl(reportFileName, 'application/pdf');
+        await uploadPdfToS3(reportUrl, reportPdfBlob);
+        reportPdfUrl = reportUrl;
+        reportPdfKey = reportFileName;
+        console.log('Report PDF S3 URL:', reportPdfUrl);
+      } else {
+        throw new Error('Failed to generate report PDF blob');
+      }
+    } catch (error) {
+      console.error('Failed to upload main report PDF to S3:', error);
+    }
+
+    // --- Generate and upload child-friendly summary PDF ---
+    try {
+      const summaryPdf = new jsPDF();
+      // ... (PDF content generation code) ...
+      if(generateChildFriendly){
+        const summaryFileName = `Child_Friendly_Summary_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
+        let summaryText = childFriendlySummary;
+        if (generateChildFriendly && !childFriendlySummary) {
+          summaryText = await generateChildFriendlySummary();
+        }
+        const summaryPdfBlob = handleDownloadChildFriendlyPDF(false, summaryText);
+        const { url: summaryUrl } = await getS3SignedUrl(summaryFileName, 'application/pdf');
+        await uploadPdfToS3(summaryUrl, summaryPdfBlob);
+        summaryPdfUrl = summaryUrl;
+        summaryPdfKey = summaryFileName;
+        console.log('Child-Friendly Summary PDF S3 URL:', summaryPdfUrl);
+      }
+      
+    } catch (error) {
+      console.error('Failed to upload child-friendly summary PDF to S3:', error);
+    }
+
+    setS3PdfLinks({ report: reportPdfUrl, summary: summaryPdfUrl });
+
+    // --- Create visit if not present, then save report row with S3 keys ---
+    const home_id = searchParams.get("homeId") || null;
+    let visit_id = reportData.visitId || null;
+    const created_by = userId;
+    const organization_id = localStorage.getItem('organization_id');
+    if (!home_id || !created_by || !organization_id) {
+      toast({
+        title: "Error",
+        description: "Missing required information to save the report.",
+        duration: 3000,
+      });
+      return;
+    }
+    // If visit_id is not set, create a visit first
+    if (!visit_id) {
+      const { data, error } = await supabase.from('visits').insert([
+        {
+          home_id,
+          scheduled_for: reportData.visitDate,
+          created_by,
+          status: 'completed',
+        },
+      ]).select();
+      if (error || !data || !data[0] || !data[0].id) {
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to create visit.",
+          duration: 3000,
+        });
+        return;
+      }
+      visit_id = data[0].id;
+      setReportData((prev) => ({ ...prev, visitId: visit_id }));
+    }
+    // Save to reports table with S3 keys
+    const { error: reportError } = await supabase.from('reports').insert([
+      {
+        home_id,
+        visit_id,
+        created_by,
+        organization_id,
+        data: null,
+        status: 'submitted',
+        summary_pdf: summaryPdfKey,
+        report_pdf: reportPdfKey,
+      },
+    ]);
+    if (reportError) {
+      toast({
+        title: "Error",
+        description: reportError.message || "Failed to save report.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    else  {
+      toast({
+        title: "Success",
+        description: "Report has been created sucessfully",
+        duration: 3000,
+      });
+    }
+
     setIsReportSubmitted(true);
     setViewMode("review");
-    handleSaveDraft();
   };
 
   const handleAddAction = () => {
@@ -1949,11 +1829,11 @@ Kind regards,
     addFooter();
 
     // Download the PDF
-    const fileName = `AI_Enhanced_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const fileName = `AI_Enhanced_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
     pdf.save(fileName);
   };
 
-  const handleDownloadChildFriendlyPDF = () => {
+  const handleDownloadChildFriendlyPDF = (shouldDownload = true, summaryText?: string) => {
     const pdf = new jsPDF();
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -2011,7 +1891,7 @@ Kind regards,
     yPosition += 15;
 
     // Add the child-friendly content
-    const content = childFriendlySummary
+    const content = summaryText || childFriendlySummary
       .replace(/^# /, "")
       .replace(/\n## /g, "\n\n")
       .replace(/\n\n/g, "\n");
@@ -2021,11 +1901,16 @@ Kind regards,
     addFooter();
 
     // Download the PDF
-    const fileName = `Child_Friendly_Summary_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
-    pdf.save(fileName);
+    const fileName = `Child_Friendly_Summary_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
+    if (shouldDownload) {
+      pdf.save(fileName);
+      return
+    }
+    const pdfBlob = pdf.output('blob');
+    return pdfBlob;
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async (shouldDownload = true) => {
     const pdf = new jsPDF();
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -2231,12 +2116,48 @@ Kind regards,
       pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
     }
 
+    // Document Checklist Section
+    if (reportData.documentChecklist && reportData.documentChecklist.length > 0) {
+      checkNewPage(30);
+      addWrappedText("Document Checklist", 14, true);
+      yPosition += 5;
+
+      reportData.documentChecklist.forEach((item, idx) => {
+        checkNewPage(15);
+        addWrappedText(
+          `${idx + 1}. ${item.name} - ${item.checked ? "[x]" : "[ ]"}`,
+          10,
+          false
+        );
+        if (item.notes && item.notes.trim()) {
+          addWrappedText(`   Comment: ${item.notes}`, 10, false);
+        }
+        yPosition += 5;
+      });
+      yPosition += 10;
+    }
+
     // Add footer to last page
     addFooter();
 
-    // Download the PDF
-    const fileName = `Regulation44_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
-    pdf.save(fileName);
+    const fileName = `Regulation44_Report_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
+    if (shouldDownload) {
+      pdf.save(fileName);
+    }
+
+    try {
+      // Get PDF as Blob
+      const pdfBlob = pdf.output('blob');
+      return pdfBlob;
+    } catch (error) {
+      toast({
+        title: '❌ PDF Generation Failed',
+        description: error instanceof Error ? error.message : 'Failed to generate PDF.',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return null;
+    }
   };
 
   // Sync offline data to cloud
@@ -7060,6 +6981,36 @@ Back to Dashboard
                         report.
                       </DialogDescription>
                     </DialogHeader>
+
+                                        {/* child friendly */}
+
+
+                                        <div className="flex items-start space-x-3">
+                        <Checkbox
+                          id="generate-child-friendly-sticky"
+                          checked={generateChildFriendly}
+                          onCheckedChange={(checked) =>
+                            setGenerateChildFriendly(!!checked)
+                          }
+                        />
+                        <div>
+                          <Label
+                            htmlFor="generate-child-friendly-sticky"
+                            className="text-sm font-medium"
+                          >
+                            Generate a Ai-Enhanced summary
+                          </Label>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Create a simplified, positive version of the report
+                            summary.
+                          </p>
+                        </div>
+                      </div>
+
+
+
+                    {/* child friendly ends here  */}
+                    
                     <div className="space-y-4">
                       <div className="flex items-start space-x-3">
                         <Checkbox
@@ -7083,6 +7034,9 @@ Back to Dashboard
                           </p>
                         </div>
                       </div>
+
+
+
 
                       <div className="flex space-x-2 pt-4">
                         <Button

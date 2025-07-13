@@ -9,6 +9,8 @@ import Signup from "./pages/auth/signup";
 import Login from "./pages/auth/Login";
 import { supabase } from "./types/supabase";
 import Users from "./components/Users";
+import Reports from "./components/Reports";
+import Visits from "./components/Visits";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,6 +35,8 @@ function App() {
         <Routes>
           <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to="/signup" />} />
           <Route path="/report/new" element={<ReportBuilder />} />
+          <Route path="/reports" element={<Reports />} />
+           <Route path="/visits" element={<Visits />} />
           <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/users" element={<Users />} />
           <Route path="/signup" element={!isAuthenticated ? <Signup /> : <Navigate to="/" />} />
