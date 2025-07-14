@@ -36,33 +36,33 @@ jobs:
           EC2_HOST: ec2-54-82-34-1.compute-1.amazonaws.com
           EC2_USER: ec2-user
           SSH_PRIVATE_KEY: |
-          -----BEGIN RSA PRIVATE KEY-----
-          MIIEpQIBAAKCAQEA4k0tMWatchEkMgcduzlurcKI9wu4VqD4UCDGJKhMw2x4Q2Xg
-          1ODepMzlv/dMxytzbueabw/aWn4hxRBUg0eDMKtu60YbvZ7eJeDrj025z2dh9lcN
-          hqQokYjR0eWW+2mvkIlTdCXqItAsU7ZWmvbdQgop06DRoxaGoB1KOFFVlCcafRLx
-          tm05pQhbZ2A6OFUvxL5TZ/cjSPdP01g5mzUcUAkn6BO32KgDjYHRzgsbUUPq+Hnk
-          zNdE66m0zAQ+0uHqc+Wozie0Z+6YFsQaGdFdte/37gWwm2+sQNPXxePVA4kHR/7I
-          WTPyL9gDyu5oK+KqPqGClUFOBhl23aOQoJLoKQIDAQABAoIBAEyZQO3Symysvqqs
-          W/TueLcZ/NBaSDgSXlqI7WilCu6u/XoatuJ3hwUTUcULiRJ1c6obfNuQ6yDsRrP0
-          VhblktNbg7zhSyyA5MK/ghxMe9NnM/J0/uAPGqhAPn0kkFljKYjr4rKSztCf1BE1
-          y9TCMJxU4ll+utbQHht+Lowng6cUflfmnEZa6Bw3wq/PyNsjO+Ouca+HyqmTQ4ms
-          yoxUdmVv5HA1fvMgpf6vO6G+yIACMy5tsbZ+QSHuMFFnpM13R0eD00O/uAchKreu
-          swXwpGv+70uVuzIMZxv3eSbFB0kEsePEFEFfVnT5oJAG5vpKn4GvGkJ6yStrnlhz
-          lW6xKk0CgYEA9jIZH5a0nIqreQzdsueHMN8HVH3mkly2r0XCPMblEm7kXQeLMSAe
-          dXPMHbEoquCIBbWxT51RVm2+ZZOyPMIrdbXEkjMV6H/nwyqjNOEoWg3AGH0+ynQK
-          siDRTcphwSqJCT4FhHuzrGxKAs14sARX33CUwVWW9HcLlIxWzcXBAycCgYEA61BD
-          CttUsRnbRoF84KxyGXPjaRAbmLJjz/wUxHzk7I56CunV6gS+Nl3gSKwYgMW7dG9a
-          lwHBI1VFMcv34BnIUs4Kzm/rlsPDvN+9qcT+tXmj/RfhlTlMVie8ON+6dpA8+QN6
-          ESDpve4dVzBnu3zFuy/tnp7xM0ECWKy/HbKGjC8CgYEAymir4R2tRhp4GeCrEOBr
-          dJGY3C1aeLDC/V0T8ZXwVXRYSefe1ze58wSOJ0c00TAihNc5fOQxMCav56FDY9Kb
-          mn4jq7NWar1l1T5jyiDnZQpzCW9HRXmcJZD3o8YlEoQfADs+nAp70OGDA8TcWZJo
-          kGpl0oHExx5speevoiPYqPcCgYEAm7fkdcXJGN2cft7nraJQa0mGXxtat8StSpBt
-          ic2AjI6IcrplZdS3rzCWYGEKYgT31MhvsWhm0CP4g0iQAwvsxec1vYDQ7VclK9MA
-          Jt2HFL6nZ7ArBt4BBy6KXzSmpxkyUDMdz0HxjE+LuQv+SVL7YrEH1SUnRpypmdbP
-          Li7a3N8CgYEAvwe6f1jAJagtRNzk9dIxORdKTMJkDWdaV+0CGyJYDg4PSd34/IB8
-          o12ush9CBnsf3ZqMBtSwtZDiSTJFJQ+2YquviaeK6/VXnYbe9tCLMG5cb0Tbp5Jp
-          MsYx79SsocNBtRyTGyoV7A4dPx65MKJqB5tAEH24Xsh254wRnW8BTvk=
-          -----END RSA PRIVATE KEY-----
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIEpQIBAAKCAQEA4k0tMWatchEkMgcduzlurcKI9wu4VqD4UCDGJKhMw2x4Q2Xg
+            1ODepMzlv/dMxytzbueabw/aWn4hxRBUg0eDMKtu60YbvZ7eJeDrj025z2dh9lcN
+            hqQokYjR0eWW+2mvkIlTdCXqItAsU7ZWmvbdQgop06DRoxaGoB1KOFFVlCcafRLx
+            tm05pQhbZ2A6OFUvxL5TZ/cjSPdP01g5mzUcUAkn6BO32KgDjYHRzgsbUUPq+Hnk
+            zNdE66m0zAQ+0uHqc+Wozie0Z+6YFsQaGdFdte/37gWwm2+sQNPXxePVA4kHR/7I
+            WTPyL9gDyu5oK+KqPqGClUFOBhl23aOQoJLoKQIDAQABAoIBAEyZQO3Symysvqqs
+            W/TueLcZ/NBaSDgSXlqI7WilCu6u/XoatuJ3hwUTUcULiRJ1c6obfNuQ6yDsRrP0
+            VhblktNbg7zhSyyA5MK/ghxMe9NnM/J0/uAPGqhAPn0kkFljKYjr4rKSztCf1BE1
+            y9TCMJxU4ll+utbQHht+Lowng6cUflfmnEZa6Bw3wq/PyNsjO+Ouca+HyqmTQ4ms
+            yoxUdmVv5HA1fvMgpf6vO6G+yIACMy5tsbZ+QSHuMFFnpM13R0eD00O/uAchKreu
+            swXwpGv+70uVuzIMZxv3eSbFB0kEsePEFEFfVnT5oJAG5vpKn4GvGkJ6yStrnlhz
+            lW6xKk0CgYEA9jIZH5a0nIqreQzdsueHMN8HVH3mkly2r0XCPMblEm7kXQeLMSAe
+            dXPMHbEoquCIBbWxT51RVm2+ZZOyPMIrdbXEkjMV6H/nwyqjNOEoWg3AGH0+ynQK
+            siDRTcphwSqJCT4FhHuzrGxKAs14sARX33CUwVWW9HcLlIxWzcXBAycCgYEA61BD
+            CttUsRnbRoF84KxyGXPjaRAbmLJjz/wUxHzk7I56CunV6gS+Nl3gSKwYgMW7dG9a
+            lwHBI1VFMcv34BnIUs4Kzm/rlsPDvN+9qcT+tXmj/RfhlTlMVie8ON+6dpA8+QN6
+            ESDpve4dVzBnu3zFuy/tnp7xM0ECWKy/HbKGjC8CgYEAymir4R2tRhp4GeCrEOBr
+            dJGY3C1aeLDC/V0T8ZXwVXRYSefe1ze58wSOJ0c00TAihNc5fOQxMCav56FDY9Kb
+            mn4jq7NWar1l1T5jyiDnZQpzCW9HRXmcJZD3o8YlEoQfADs+nAp70OGDA8TcWZJo
+            kGpl0oHExx5speevoiPYqPcCgYEAm7fkdcXJGN2cft7nraJQa0mGXxtat8StSpBt
+            ic2AjI6IcrplZdS3rzCWYGEKYgT31MhvsWhm0CP4g0iQAwvsxec1vYDQ7VclK9MA
+            Jt2HFL6nZ7ArBt4BBy6KXzSmpxkyUDMdz0HxjE+LuQv+SVL7YrEH1SUnRpypmdbP
+            Li7a3N8CgYEAvwe6f1jAJagtRNzk9dIxORdKTMJkDWdaV+0CGyJYDg4PSd34/IB8
+            o12ush9CBnsf3ZqMBtSwtZDiSTJFJQ+2YquviaeK6/VXnYbe9tCLMG5cb0Tbp5Jp
+            MsYx79SsocNBtRyTGyoV7A4dPx65MKJqB5tAEH24Xsh254wRnW8BTvk=
+            -----END RSA PRIVATE KEY-----
 
         run: |
           # Setup SSH
