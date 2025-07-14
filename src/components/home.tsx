@@ -237,7 +237,7 @@ const HomeDashboard = () => {
             </span>
           </div>
           <div className="text-3xl font-bold text-gray-900 mb-1">
-            {homes.reduce((sum, home) => sum + home.reportsCount, 0)}
+            {homes.reduce((sum, home) => sum + home.reportsCount, 0) ? homes.reduce((sum, home) => sum + home.reportsCount, 0) : 0}
           </div>
           <div className="text-sm text-gray-600">Total Reports</div>
         </div>

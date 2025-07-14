@@ -17,6 +17,7 @@ interface Report {
   report_pdf: string | null;
   home_name?: string | null;
   user_name?: string | null;
+  child_summary_pdf?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -118,6 +119,8 @@ const Reports = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Summary PDF</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report PDF</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Child Friendly PDF</th>
+
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -148,6 +151,9 @@ const Reports = () => {
                         </a>
                       ) : "-"}
                     </td>
+
+              
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       {report.report_pdf ? (
                         <a
@@ -157,6 +163,21 @@ const Reports = () => {
                           className="text-blue-600 underline"
                         >
                           {report.report_pdf}
+                        </a>
+                      ) : "-"}
+                    </td>
+
+
+                    <td className="px-6 py-4 whitespace-nowrap">
+                    {/* https://ip44reporter.s3.eu-west-2.amazonaws.com/Child_Friendly_Summary_Haven_Supported_Living_2025-07-03_20250703_151811.pdf */}
+                      {report.child_summary_pdf ? (
+                        <a
+                          href={`https://ip44reporter.s3.eu-west-2.amazonaws.com/${report.child_summary_pdf}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          {report.child_summary_pdf}
                         </a>
                       ) : "-"}
                     </td>

@@ -4,7 +4,7 @@ import { supabase } from '../types/supabase';
 
 const api = axios.create({
   // You can set a baseURL here if needed
-  // baseURL: 'http://localhost:3000',
+  baseURL: 'http://localhost:3000',
 });
 
 // Add a request interceptor to include the access token
@@ -56,6 +56,18 @@ export async function generateAiReportSummary(reportData: string, userId?: strin
   };
 
   const response = await api.post('http://localhost:3000/ai-report-summary', requestBody);
+  return response.data;
+}
+
+
+export async function generateChildFriendlyReportFromAi(reportData: string, userId?: string, organizationId?: string) {
+  const requestBody = {
+    reportData,
+    userId,
+    organizationId,
+  };
+
+  const response = await api.post('http://localhost:3000/ai-report-summary/child-friendly', requestBody);
   return response.data;
 }
 

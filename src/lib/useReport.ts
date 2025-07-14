@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../types/supabase';
-import { generateAiReportSummary } from './api';
+import { generateAiReportSummary, generateChildFriendlyReportFromAi } from './api';
 
 export function useReport() {
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export function useReport() {
   };
 
   // Generate child-friendly summary using AI
-  const generateChildFriendlySummaryFromAi = async (reportData: any) => {
+  const generateAiEnhancedSummary = async (reportData: any) => {
     alert("generarting ")
     setLoading(true);
     setError(null);
@@ -95,12 +95,37 @@ export function useReport() {
     }
   };
 
+
+  const generateChildFriendlyReportAi = async (reportData: any) => {
+    alert("generarting child frinedly")
+    setLoading(true);
+    setError(null);
+    try {
+      const userId = localStorage.getItem('user_id');
+      const organizationId = localStorage.getItem('organization_id');
+      const result = await generateChildFriendlyReportFromAi(
+        JSON.stringify(reportData),
+        userId || undefined,
+        organizationId || undefined
+      );
+      setLoading(false);
+      return result.summary || result.content || result.response || JSON.stringify(result);
+    } catch (err) {
+      setLoading(false);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate AI summary';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+
   return {
     createReport,
     fetchReportsByVisit,
     fetchReportsByHome,
     fetchReportsByOrganization,
-    generateChildFriendlySummaryFromAi,
+    generateAiEnhancedSummary,
+    generateChildFriendlyReportAi,
     loading,
     error,
   };

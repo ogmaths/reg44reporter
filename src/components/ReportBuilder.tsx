@@ -144,6 +144,7 @@ const ReportBuilder = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [reportVersions, setReportVersions] = useState<ReportVersion[]>([]);
   const [generateChildFriendly, setGenerateChildFriendly] = useState(false);
+  const [generateAiEhanced, setGenerateAiEhanced] = useState(false);
   const [childFriendlySummary, setChildFriendlySummary] = useState("");
   const [isGeneratingChildFriendly, setIsGeneratingChildFriendly] =
     useState(false);
@@ -301,8 +302,8 @@ const ReportBuilder = () => {
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [showFollowUpMessage, setShowFollowUpMessage] = useState(false);
   const [newDocumentName, setNewDocumentName] = useState("");
-
-  const { createReport, generateChildFriendlySummaryFromAi, loading: reportLoading, error: reportError } = useReport();
+  const [aiEnhancedSummary, setAiEnhancedSummary] = useState("");
+  const { createReport, generateAiEnhancedSummary, generateChildFriendlyReportAi, loading: reportLoading, error: reportError } = useReport();
 
   const [s3PdfLinks, setS3PdfLinks] = useState<{ report: string | null, summary: string | null }>({ report: null, summary: null });
   const [userId, setUserId] = useState<string | null>(null);
@@ -1018,7 +1019,7 @@ const ReportBuilder = () => {
     }, 2000);
   };
 
-  const generateAIPolishedReport = async () => {
+  const generateAIEnhancedReport = async () => {
     setIsGeneratingAIPolished(true);
 
     // Simulate AI generation for polished report
@@ -1149,6 +1150,21 @@ const ReportBuilder = () => {
     }, 3000);
   };
 
+  const generateChildFriendlyReport = async () => {
+    setIsGeneratingChildFriendly(true);
+    try {
+      const report = await generateChildFriendlyReportAi(reportData);
+      console.log("Child-friendly report>>> ", report);
+      setChildFriendlySummary(report);
+      setIsGeneratingChildFriendly(false);
+      return report;
+    } catch (error) {
+      console.error('Error generating child-friendly report:', error);
+      setIsGeneratingChildFriendly(false);
+      throw error;
+    }
+  };
+
 
 
 
@@ -1229,17 +1245,17 @@ const ReportBuilder = () => {
   //   });
   // };
 
-  const generateChildFriendlySummary = async () => {
-    setIsGeneratingChildFriendly(true);
+  const generateAiEnhancedSummaryfromAi = async () => {
+    setGenerateAiEhanced(true);
     try {
-      const summary = await generateChildFriendlySummaryFromAi(reportData);
+      const summary = await generateAiEnhancedSummary(reportData);
       console.log("summary>>> ",summary)
-      setChildFriendlySummary(summary);
-      setIsGeneratingChildFriendly(false);
+      setAiEnhancedSummary(summary);
+      setGenerateAiEhanced(false);
       return summary;
     } catch (error) {
       console.error('Error generating AI report summary:', error);
-      setIsGeneratingChildFriendly(false);
+      setGenerateAiEhanced(false);
       throw error;
     }
   };
@@ -1295,7 +1311,7 @@ const ReportBuilder = () => {
 
     // Generate child-friendly summary if requested
     if (generateChildFriendly && !childFriendlySummary) {
-      await generateChildFriendlySummary();
+      await generateChildFriendlyReport();
     }
 
     // --- Generate and upload main report PDF ---
@@ -1303,6 +1319,7 @@ const ReportBuilder = () => {
     let summaryPdfUrl: string | null = null;
     let reportPdfKey: string | null = null;
     let summaryPdfKey: string | null = null;
+    let childFriendlyKey : string | null = null;
     try {
       // Main report PDF
       const reportPdf = new jsPDF();
@@ -1322,7 +1339,36 @@ const ReportBuilder = () => {
       console.error('Failed to upload main report PDF to S3:', error);
     }
 
-    // --- Generate and upload child-friendly summary PDF ---
+
+
+
+
+    
+ // --- Generate and upload generateAiEhanced summary PDF ---
+
+    try {
+      const summaryPdf = new jsPDF();
+      // ... (PDF content generation code) ...
+      if(generateAiEhanced){
+        const summaryFileName = `AI_enhanced_Summary_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
+        let summaryText = aiEnhancedSummary;
+        if (generateAiEhanced && !aiEnhancedSummary) {
+          summaryText = await generateAiEnhancedSummaryfromAi();
+        }
+        const summaryPdfBlob = handleDownloadChildFriendlyPDF(false, summaryText);
+        const { url: summaryUrl } = await getS3SignedUrl(summaryFileName, 'application/pdf');
+        await uploadPdfToS3(summaryUrl, summaryPdfBlob);
+        summaryPdfUrl = summaryUrl;
+        summaryPdfKey = summaryFileName;
+        console.log('Child-Friendly Summary PDF S3 URL:', summaryPdfUrl);
+      }
+      
+    } catch (error) {
+      console.error('Failed to upload child-friendly summary PDF to S3:', error);
+    }
+
+      // --- Generate and upload child-friendly summary PDF ---
+
     try {
       const summaryPdf = new jsPDF();
       // ... (PDF content generation code) ...
@@ -1330,13 +1376,13 @@ const ReportBuilder = () => {
         const summaryFileName = `Child_Friendly_Summary_${reportData.homeName.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}_${getTimestamp()}.pdf`;
         let summaryText = childFriendlySummary;
         if (generateChildFriendly && !childFriendlySummary) {
-          summaryText = await generateChildFriendlySummary();
+          summaryText = await generateChildFriendlyReport();
         }
         const summaryPdfBlob = handleDownloadChildFriendlyPDF(false, summaryText);
         const { url: summaryUrl } = await getS3SignedUrl(summaryFileName, 'application/pdf');
         await uploadPdfToS3(summaryUrl, summaryPdfBlob);
         summaryPdfUrl = summaryUrl;
-        summaryPdfKey = summaryFileName;
+        childFriendlyKey = summaryFileName;
         console.log('Child-Friendly Summary PDF S3 URL:', summaryPdfUrl);
       }
       
@@ -1381,6 +1427,7 @@ const ReportBuilder = () => {
       setReportData((prev) => ({ ...prev, visitId: visit_id }));
     }
     // Save to reports table with S3 keys
+    console.log("summary pdf keys ",summaryPdfKey,childFriendlyKey)
     const { error: reportError } = await supabase.from('reports').insert([
       {
         home_id,
@@ -1391,6 +1438,7 @@ const ReportBuilder = () => {
         status: 'submitted',
         summary_pdf: summaryPdfKey,
         report_pdf: reportPdfKey,
+        child_summary_pdf: childFriendlyKey,
       },
     ]);
     if (reportError) {
@@ -6700,7 +6748,7 @@ Back to Dashboard
                     <div className="flex items-center space-x-2">
                       {!aiPolishedContent && (
                         <Button
-                          onClick={generateAIPolishedReport}
+                          onClick={generateAIEnhancedReport}
                           disabled={isGeneratingAIPolished}
                           variant="default"
                         >
@@ -6792,7 +6840,7 @@ Back to Dashboard
                     <div className="flex items-center space-x-2">
                       {!childFriendlySummary && (
                         <Button
-                          onClick={generateChildFriendlySummary}
+                          onClick={generateChildFriendlyReport}
                           disabled={isGeneratingChildFriendly}
                           variant="secondary"
                         >
@@ -6995,14 +7043,17 @@ Back to Dashboard
                         />
                         <div>
                           <Label
-                            htmlFor="generate-child-friendly-sticky"
+                            htmlFor="generate-Ai-Enhanced-sticky"
                             className="text-sm font-medium"
                           >
-                            Generate a Ai-Enhanced summary
+                             Generate a child-friendly summary
+                           
                           </Label>
                           <p className="text-xs text-gray-600 mt-1">
-                            Create a simplified, positive version of the report
-                            summary.
+                             Create a simplified, positive version of the report
+                            summary that's easy for young people to understand.
+                            This is for internal use only.
+                           
                           </p>
                         </div>
                       </div>
@@ -7014,10 +7065,10 @@ Back to Dashboard
                     <div className="space-y-4">
                       <div className="flex items-start space-x-3">
                         <Checkbox
-                          id="generate-child-friendly-sticky"
-                          checked={generateChildFriendly}
+                          id="generate-Ai-enhanced-sticky"
+                          checked={generateAiEhanced}
                           onCheckedChange={(checked) =>
-                            setGenerateChildFriendly(!!checked)
+                            setGenerateAiEhanced(!!checked)
                           }
                         />
                         <div>
@@ -7025,12 +7076,11 @@ Back to Dashboard
                             htmlFor="generate-child-friendly-sticky"
                             className="text-sm font-medium"
                           >
-                            Generate a child-friendly summary
+                            Generate a Ai-Enhanced summary
                           </Label>
                           <p className="text-xs text-gray-600 mt-1">
-                            Create a simplified, positive version of the report
-                            summary that's easy for young people to understand.
-                            This is for internal use only.
+                          Create a simplified, positive version of the report
+                          summary.
                           </p>
                         </div>
                       </div>
